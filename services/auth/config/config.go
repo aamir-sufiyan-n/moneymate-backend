@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	sharedconfig "github.com/moneymate-2026/moneymate-backend/shared/config"
 	"github.com/spf13/viper"
 )
 
@@ -77,7 +78,7 @@ func LoadConfig() (*Config, error) {
     if yamlPath == "" {
         yamlPath = "./config/config.yaml" // sensible default for local dev
     }
-
+    
     v := viper.New()
     v.SetConfigFile(yamlPath)
     v.AutomaticEnv()
@@ -113,14 +114,15 @@ func LoadConfig() (*Config, error) {
     )
 
     // pull secrets directly — never in yaml
-    cfg.JWT.AccessSecret  = mustEnv("JWT_ACCESS_SECRET")
-    cfg.JWT.RefreshSecret = mustEnv("JWT_REFRESH_SECRET")
-    cfg.Env               = getEnv("ENVIRONMENT", "dev")
-    
+    cfg.JWT.AccessSecret  = sharedconfig.MustGet("JWT_ACCESS_SECRET")
+    cfg.JWT.RefreshSecret = sharedconfig.MustGet("JWT_REFRESH_SECRET")
+    cfg.Env               = sharedconfig.Get("ENVIRONMENT", "dev")
+
 
     if err := validate(&cfg); err != nil {
         return nil, err
     }
+    
 
     return &cfg, nil
 }
@@ -149,17 +151,3 @@ func validate(cfg *Config) error {
     return nil
 }
 
-func mustEnv(key string) string {
-    val := os.Getenv(key)
-    if val == "" {
-        panic(fmt.Sprintf("required env var not set: %s", key))
-    }
-    return val
-}
-
-func getEnv(key, fallback string) string {
-    if val := os.Getenv(key); val != "" {
-        return val
-    }
-    return fallback
-}
