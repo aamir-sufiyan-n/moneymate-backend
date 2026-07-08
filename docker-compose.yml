@@ -11,11 +11,13 @@ services:
     build:
       context: .
       dockerfile: ./services/gateway/Dockerfile
-      target: dev
+      target: dev # <--- Uses the Air development stage
     volumes:
-      - .:/moneymate                       
-      - /moneymate/services/gateway/tmp    
-    working_dir: /moneymate/services/gateway
+      - ./:/moneymate-backend
+
+    working_dir: /moneymate-backend/services/gateway
+    environment:
+      - CONFIG_PATH=/moneymate-backend/shared/config/config.yaml
     env_file:
       - .env
     environment:
@@ -38,11 +40,12 @@ services:
     build:
       context: .
       dockerfile: ./services/auth/Dockerfile
-      target: dev
+      target: dev # <--- Uses the Air development stage
     volumes:
-      - .:/moneymate
-      - /moneymate/services/auth/tmp       
-    working_dir: /moneymate/services/auth
+     - ./:/moneymate-backend
+    working_dir: /moneymate-backend/services/auth
+    environment:
+      - CONFIG_PATH=/moneymate-backend/shared/config/config.yaml
     env_file:
       - .env
     environment:
@@ -77,6 +80,7 @@ services:
       - "5433:5432"                        
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres:/docker-entrypoint-initdb.d
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
       - ./infra/postgres/roles:/docker-entrypoint-initdb.d/roles  
     networks:
@@ -97,6 +101,18 @@ services:
     command: redis-server --requirepass ${REDIS_PASSWORD}
     networks:
       - moneymate-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:

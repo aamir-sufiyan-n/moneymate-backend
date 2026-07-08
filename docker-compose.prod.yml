@@ -12,6 +12,7 @@ services:
     env_file:
       - .env.prod 
     environment:
+      - CONFIG_PATH=/config.yaml
       - AUTH_SERVICE_URL=auth:9091
       - REDIS_URL=redis:6379
     ports:
@@ -37,6 +38,7 @@ services:
     environment:
       - DB_URL=postgres://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}?search_path=auth
       - REDIS_URL=redis:6379
+      - CONFIG_PATH=/config.yaml
     expose:
       - "8081"
       - "9091"

@@ -47,6 +47,9 @@ tmp/
 *.swp
 *.swo
 .DS_Store
+#air tmep
+*/tmp/
+build-errors.log
 
 # ── OS ───────────────────────────────────────────────────────────
 .DS_Store
