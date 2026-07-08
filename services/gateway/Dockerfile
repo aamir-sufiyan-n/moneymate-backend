@@ -1,41 +1,39 @@
+FROM golang:1.22-alpine AS base
+WORKDIR /moneymate
 
-FROM golang:1.26.4-alpine AS builder
-WORKDIR /moneymate-backend
+RUN apk add --no-cache git
 
+COPY go.work go.work.sum ./
+COPY shared/go.mod shared/go.mod
+COPY services/auth/go.mod services/auth/go.mod
+COPY services/gateway/go.mod services/gateway/go.mod
 
-FROM builder AS dev
+RUN go work sync
 
+FROM base AS dev
+WORKDIR /moneymate/services/gateway
 
 RUN go install github.com/air-verse/air@latest
+
 CMD ["air", "-c", ".air.toml"]
 
+FROM base AS builder
+WORKDIR /moneymate
 
-FROM builder AS prod-builder
-COPY gateway/go.mod gateway/go.sum ./gateway/
-WORKDIR /moneymate-backend/gateway
-RUN go mod download
+COPY shared/ shared/
+COPY services/gateway/ services/gateway/
 
-WORKDIR /moneymate-backend
-COPY shared/ ./shared/
-COPY db/ ./db/
-COPY gateway/ ./gateway/
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -o /bin/gateway \
+    ./services/gateway/cmd/main.go
 
-WORKDIR /moneymate-backend/gateway
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /server ./cmd/main.go
-
-
-FROM alpine:latest AS prod
-WORKDIR /app/
-
-RUN apk --no-cache add ca-certificates tzdata
+FROM alpine:3.19 AS prod
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
-COPY --from=prod-builder /server .
-
 USER appuser
 
+COPY --from=builder /bin/gateway /bin/gateway
 
-EXPOSE 8081
+EXPOSE 8080
 
-CMD ["./server"]
+CMD ["/bin/gateway"]

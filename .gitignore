@@ -1,37 +1,63 @@
+# ── Environment files ────────────────────────────────────────────
+.env
+.env.prod
+.env.local
+services/auth/.env
+services/auth/.env.prod
+services/gateway/.env
+services/gateway/.env.prod
 
+# ── Go ───────────────────────────────────────────────────────────
+# binaries
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+bin/
 
-.task\
-
+# test output
 *.test
-
-# Code coverage profiles and other test artifacts
 *.out
-coverage.*
-*.coverprofile
-profile.cov
+coverage.html
+coverage.out
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# go workspace sum (some teams commit this, some don't)
+# we commit it — it ensures reproducible builds
+# go.work.sum  ← do NOT ignore this
 
+# ── Air hot reload ───────────────────────────────────────────────
+services/auth/tmp/
+services/gateway/tmp/
+tmp/
 
+# ── SQLC generated (optional — some teams commit generated code)
+# services/auth/internal/adapter/postgres/queries/
+# we commit generated code so teammates don't need sqlc installed
 
-# env file
-.env
+# ── Proto generated (same — we commit it)
+# shared/proto/gen/
 
-# Editor/IDE
-# .idea/
-# .vscode/
+# ── Docker ───────────────────────────────────────────────────────
+# nothing to ignore here, Dockerfiles are committed
 
+# ── IDE ──────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
 #air tmep
 */tmp/
 build-errors.log
 
+# ── OS ───────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
 
+# ── Logs ─────────────────────────────────────────────────────────
+*.log
+logs/
 
-
-workspace.md
+# ── Test / coverage ──────────────────────────────────────────────
+coverage/

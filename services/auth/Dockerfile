@@ -1,46 +1,53 @@
+# ── Stage 1: base ───────────────────────────────────────────────
+FROM golang:1.22-alpine AS base
+WORKDIR /moneymate
 
-# STAGE 1: Base Builder (Shared Context)
-FROM golang:1.26.4-alpine AS builder
-WORKDIR /moneymate-backend
+# install dependencies
+RUN apk add --no-cache git
 
-# STAGE 2: Local Development Environment
-FROM builder AS dev
+# copy go workspace files first for layer caching
+COPY go.work go.work.sum ./
 
+# copy all go.mod files so workspace resolves
+COPY shared/go.mod shared/go.mod
+COPY services/auth/go.mod services/auth/go.mod
+COPY services/gateway/go.mod services/gateway/go.mod
+
+# download dependencies
+RUN go work sync
+
+# ── Stage 2: dev ────────────────────────────────────────────────
+FROM base AS dev
+WORKDIR /moneymate/services/auth
+
+# install air for hot reload
 RUN go install github.com/air-verse/air@latest
+
+# air watches for changes and rebuilds
 CMD ["air", "-c", ".air.toml"]
 
-# STAGE 3: Production Builder
-FROM builder AS prod-builder
-COPY auth/go.mod auth/go.sum ./auth/
-WORKDIR /moneymate-backend/auth
-RUN go mod download
+# ── Stage 3: builder ────────────────────────────────────────────
+FROM base AS builder
+WORKDIR /moneymate
 
-WORKDIR /moneymate-backend
-COPY shared/ ./shared/
-COPY db/ ./db/
-COPY auth/ ./auth/
+# copy all source
+COPY shared/ shared/
+COPY services/auth/ services/auth/
 
-WORKDIR /moneymate-backend/auth
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /server ./cmd/main.go
+# build the binary
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -o /bin/auth \
+    ./services/auth/cmd/main.go
 
-# STAGE 4: Final Secure Production Image
-FROM alpine:latest AS prod
-WORKDIR /app/
+# ── Stage 4: prod ───────────────────────────────────────────────
+FROM alpine:3.19 AS prod
 
-# Install CA certificates (required if your app makes external HTTPS calls)
-RUN apk --no-cache add ca-certificates tzdata
-
-# Create a non-root user for security (Principle of Least Privilege)
+# security: don't run as root
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
-# Copy ONLY the compiled binary from Stage 3
-COPY --from=prod-builder /server .
-
-# Switch to the non-root user
 USER appuser
 
-# Document the port
-EXPOSE 8081
+COPY --from=builder /bin/auth /bin/auth
 
-# Run the raw binary
-CMD ["./server"]
+EXPOSE 8081 9091
+
+CMD ["/bin/auth"]

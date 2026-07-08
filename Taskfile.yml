@@ -1,0 +1,146 @@
+# Taskfile.yml
+version: '3'
+
+dotenv: ['.env']             
+
+vars:
+  DEV_COMPOSE: docker-compose.yml
+  PROD_COMPOSE: docker-compose.prod.yml
+  AUTH_MIGRATIONS: /moneymate/services/auth/migrations
+
+tasks:
+
+  # ── Development ───────────────────────────────────────────────
+  dev:
+    desc: "Start all services in development mode with hot reload"
+    cmd: docker compose -f {{.DEV_COMPOSE}} up --build
+
+  down:
+    desc: "Stop all development services"
+    cmd: docker compose -f {{.DEV_COMPOSE}} down
+
+  down:volumes:
+    desc: "Stop all services and wipe all volumes"
+    cmd: docker compose -f {{.DEV_COMPOSE}} down -v
+
+  logs:
+    desc: "Tail logs from all services"
+    cmd: docker compose -f {{.DEV_COMPOSE}} logs -f
+
+  logs:auth:
+    desc: "Tail logs from auth service only"
+    cmd: docker compose -f {{.DEV_COMPOSE}} logs -f auth
+
+  logs:gateway:
+    desc: "Tail logs from gateway service only"
+    cmd: docker compose -f {{.DEV_COMPOSE}} logs -f gateway
+
+  # ── Production ────────────────────────────────────────────────
+  prod:
+    desc: "Start all services in production mode"
+    cmd: docker compose -f {{.PROD_COMPOSE}} up --build -d
+
+  prod:down:
+    desc: "Stop all production services"
+    cmd: docker compose -f {{.PROD_COMPOSE}} down
+
+  # ── Database ──────────────────────────────────────────────────
+  db:reset:
+    desc: "Wipe all volumes and restart postgres fresh (runs init.sql)"
+    cmds:
+      - docker compose -f {{.DEV_COMPOSE}} down -v
+      - docker compose -f {{.DEV_COMPOSE}} up postgres -d
+      - echo "Waiting for postgres to be ready..."
+      - sleep 3
+      - echo "Postgres ready — init.sql has run, schemas and roles created"
+
+  db:shell:
+    desc: "Open psql shell as superuser"
+    cmd: docker compose -f {{.DEV_COMPOSE}} exec postgres psql -U ${POSTGRES_USER} -d ${POSTGRES_DB}
+
+  db:shell:auth:
+    desc: "Open psql shell as auth_user — confirms schema isolation"
+    cmd: docker compose -f {{.DEV_COMPOSE}} exec postgres psql -U ${AUTH_DB_USER} -d ${POSTGRES_DB}
+
+  # ── Migrations ────────────────────────────────────────────────
+  migrate:auth:
+    desc: "Run auth service migrations up"
+    cmd: >
+      docker compose -f {{.DEV_COMPOSE}} run --rm auth
+      migrate
+      -path {{.AUTH_MIGRATIONS}}
+      -database "${AUTH_DB_URL}"
+      up
+
+  migrate:auth:down:
+    desc: "Roll back last auth migration"
+    cmd: >
+      docker compose -f {{.DEV_COMPOSE}} run --rm auth
+      migrate
+      -path {{.AUTH_MIGRATIONS}}
+      -database "${AUTH_DB_URL}"
+      down 1
+
+  migrate:auth:status:
+    desc: "Show current auth migration version"
+    cmd: >
+      docker compose -f {{.DEV_COMPOSE}} run --rm auth
+      migrate
+      -path {{.AUTH_MIGRATIONS}}
+      -database "${AUTH_DB_URL}"
+      version
+
+  migrate:all:
+    desc: "Run migrations for all services"
+    deps: [migrate:auth]       # ← add migrate:core, migrate:merchant later
+
+  # ── Code Generation ───────────────────────────────────────────
+  sqlc:auth:
+    desc: "Generate SQLC code for auth service"
+    cmd: >
+      docker run --rm
+      -v $(pwd)/services/auth:/src
+      -w /src
+      sqlc/sqlc generate
+
+  proto:gen:
+    desc: "Generate gRPC code from proto files"
+    cmd: >
+      protoc
+      --go_out=shared/proto/gen
+      --go_opt=paths=source_relative
+      --go-grpc_out=shared/proto/gen
+      --go-grpc_opt=paths=source_relative
+      shared/proto/auth/auth.proto
+
+  # ── Testing ───────────────────────────────────────────────────
+  test:auth:
+    desc: "Run auth service tests"
+    dir: services/auth
+    cmd: go test ./...
+
+  test:all:
+    desc: "Run all tests"
+    cmds:
+      - task: test:auth
+
+  # ── Utilities ─────────────────────────────────────────────────
+  tidy:auth:
+    desc: "Run go mod tidy for auth service"
+    dir: services/auth
+    cmd: go mod tidy
+
+  tidy:gateway:
+    desc: "Run go mod tidy for gateway service"
+    dir: services/gateway
+    cmd: go mod tidy
+
+  tidy:all:
+    desc: "Run go mod tidy for all modules"
+    cmds:
+      - task: tidy:auth
+      - task: tidy:gateway
+
+  help:
+    desc: "List all available tasks"
+    cmd: task --list
