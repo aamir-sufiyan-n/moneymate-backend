@@ -1,5 +1,12 @@
+# docker-compose.yml  (default, for development)
+name: moneymate-dev
+
+networks:
+  moneymate-network:
+    driver: bridge
 
 services:
+
   gateway:
     build:
       context: .
@@ -13,13 +20,21 @@ services:
       - CONFIG_PATH=/moneymate-backend/shared/config/config.yaml
     env_file:
       - .env
+    environment:
+      - AUTH_SERVICE_URL=auth:9091
+      - REDIS_URL=redis:6379
     ports:
       - "8080:8080"
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      auth:
         condition: service_started
+    networks:
+      - moneymate-network
 
   auth:
     build:
@@ -33,17 +48,24 @@ services:
       - CONFIG_PATH=/moneymate-backend/shared/config/config.yaml
     env_file:
       - .env
-    ports:
-      - "8081:8081"
+    environment:
+      - DB_URL=postgres://${AUTH_DB_USER}:${AUTH_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}?search_path=auth
+      - REDIS_URL=redis:6379
+    expose:
+      - "8081"
+      - "9091"
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
+    networks:
+      - moneymate-network
 
   postgres:
-    image: postgres:16-alpine # 16 is the current stable alpine version
-    restart: always
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -52,21 +74,33 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
+      start_period: 10s
     ports:
-      - "5433:5432"
+      - "5433:5432"                        
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres:/docker-entrypoint-initdb.d
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./infra/postgres/roles:/docker-entrypoint-initdb.d/roles  
+    networks:
+      - moneymate-network
 
   redis:
-    image: redis:7-alpine # 7 is the current stable alpine version
-    restart: always
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    ports:
+      - "6379:6379"                        
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"
     command: redis-server --requirepass ${REDIS_PASSWORD}
+    networks:
+      - moneymate-network
 
   pgadmin:
     image: dpage/pgadmin4:latest

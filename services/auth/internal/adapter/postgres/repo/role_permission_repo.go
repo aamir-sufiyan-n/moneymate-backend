@@ -1,10 +1,10 @@
-package postgres
+package repo
 
 import (
 	"context"
 
-	"github.com/google/uuid"
 	db "github.com/moneymate-2026/moneymate-backend/auth/sqlc/generated"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type RolePermissionRepository struct {
@@ -33,7 +33,7 @@ func (r *RolePermissionRepository) RemovePermission(
 
 func (r *RolePermissionRepository) GetRolePermissions(
 	ctx context.Context,
-	roleID uuid.UUID,
+	roleID pgtype.UUID,
 ) ([]db.AuthPermission, error) {
 	return r.queries.GetRolePermissions(ctx, roleID)
 }

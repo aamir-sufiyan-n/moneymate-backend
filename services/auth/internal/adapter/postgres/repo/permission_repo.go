@@ -1,10 +1,10 @@
-package postgres
+package repo
 
 import (
 	"context"
 
-	"github.com/google/uuid"
 	db "github.com/moneymate-2026/moneymate-backend/auth/sqlc/generated"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type PermissionRepository struct {
@@ -21,7 +21,7 @@ func (r *PermissionRepository) Create(ctx context.Context, arg db.CreatePermissi
 	return r.queries.CreatePermission(ctx,arg)
 }
 
-func (r *PermissionRepository) GetByID(ctx context.Context, id uuid.UUID)(db.AuthPermission, error){
+func (r *PermissionRepository) GetByID(ctx context.Context, id pgtype.UUID)(db.AuthPermission, error){
 	return r.queries.GetPermissionByID(ctx,id)
 }
 
@@ -33,6 +33,6 @@ func (r *PermissionRepository) List(ctx context.Context) ([]db.AuthPermission, e
 	return r.queries.ListPermissions(ctx)
 }
 
-func (r *PermissionRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *PermissionRepository) Delete(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeletePermission(ctx, id)
 }

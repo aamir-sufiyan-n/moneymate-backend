@@ -1,10 +1,10 @@
-package postgres
+package repo
 
 import (
 	"context"
 
 	db "github.com/moneymate-2026/moneymate-backend/auth/sqlc/generated"
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type RoleRepository struct {
@@ -21,7 +21,7 @@ func (r *RoleRepository) Create(ctx context.Context, arg db.CreateRoleParams) (d
 	return r.queries.CreateRole(ctx, arg)
 }
 
-func (r *RoleRepository) GetByID(ctx context.Context, id uuid.UUID) (db.AuthRole, error) {
+func (r *RoleRepository) GetByID(ctx context.Context, id pgtype.UUID) (db.AuthRole, error) {
 	return r.queries.GetRoleByID(ctx, id)
 }
 
@@ -37,6 +37,6 @@ func (r *RoleRepository) Update(ctx context.Context, arg db.UpdateRoleParams) er
 	return r.queries.UpdateRole(ctx, arg)
 }
 
-func (r *RoleRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *RoleRepository) Delete(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeleteRole(ctx, id)
 }

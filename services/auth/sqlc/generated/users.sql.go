@@ -7,9 +7,8 @@ package db
 
 import (
 	"context"
-	"database/sql"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUser = `-- name: CreateUser :one
@@ -28,13 +27,13 @@ RETURNING id, email, password_hash, email_verified, status, created_at, updated_
 `
 
 type CreateUserParams struct {
-	ID           uuid.UUID      `json:"id"`
-	Email        string         `json:"email"`
-	PasswordHash sql.NullString `json:"password_hash"`
+	ID           pgtype.UUID `json:"id"`
+	Email        string      `json:"email"`
+	PasswordHash pgtype.Text `json:"password_hash"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (AuthUser, error) {
-	row := q.db.QueryRowContext(ctx, createUser, arg.ID, arg.Email, arg.PasswordHash)
+	row := q.db.QueryRow(ctx, createUser, arg.ID, arg.Email, arg.PasswordHash)
 	var i AuthUser
 	err := row.Scan(
 		&i.ID,
@@ -55,8 +54,8 @@ FROM auth.users
 WHERE id = $1
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteUser, id)
+func (q *Queries) DeleteUser(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUser, id)
 	return err
 }
 
@@ -68,7 +67,7 @@ WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (AuthUser, error) {
-	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
 	var i AuthUser
 	err := row.Scan(
 		&i.ID,
@@ -89,8 +88,8 @@ FROM auth.users
 WHERE id = $1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (AuthUser, error) {
-	row := q.db.QueryRowContext(ctx, getUserByID, id)
+func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (AuthUser, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
 	var i AuthUser
 	err := row.Scan(
 		&i.ID,
@@ -114,12 +113,12 @@ WHERE id = $1
 `
 
 type UpdatePasswordParams struct {
-	ID           uuid.UUID      `json:"id"`
-	PasswordHash sql.NullString `json:"password_hash"`
+	ID           pgtype.UUID `json:"id"`
+	PasswordHash pgtype.Text `json:"password_hash"`
 }
 
 func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error {
-	_, err := q.db.ExecContext(ctx, updatePassword, arg.ID, arg.PasswordHash)
+	_, err := q.db.Exec(ctx, updatePassword, arg.ID, arg.PasswordHash)
 	return err
 }
 
@@ -133,12 +132,12 @@ WHERE id = $1
 `
 
 type UpdateUserStatusParams struct {
-	ID     uuid.UUID      `json:"id"`
+	ID     pgtype.UUID    `json:"id"`
 	Status AuthUserStatus `json:"status"`
 }
 
 func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) error {
-	_, err := q.db.ExecContext(ctx, updateUserStatus, arg.ID, arg.Status)
+	_, err := q.db.Exec(ctx, updateUserStatus, arg.ID, arg.Status)
 	return err
 }
 
@@ -151,7 +150,7 @@ SET
 WHERE id = $1
 `
 
-func (q *Queries) VerifyEmail(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, verifyEmail, id)
+func (q *Queries) VerifyEmail(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, verifyEmail, id)
 	return err
 }

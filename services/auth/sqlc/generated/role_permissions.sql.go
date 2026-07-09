@@ -8,7 +8,7 @@ package db
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const assignPermissionToRole = `-- name: AssignPermissionToRole :exec
@@ -23,12 +23,12 @@ VALUES (
 `
 
 type AssignPermissionToRoleParams struct {
-	RoleID       uuid.UUID `json:"role_id"`
-	PermissionID uuid.UUID `json:"permission_id"`
+	RoleID       pgtype.UUID `json:"role_id"`
+	PermissionID pgtype.UUID `json:"permission_id"`
 }
 
 func (q *Queries) AssignPermissionToRole(ctx context.Context, arg AssignPermissionToRoleParams) error {
-	_, err := q.db.ExecContext(ctx, assignPermissionToRole, arg.RoleID, arg.PermissionID)
+	_, err := q.db.Exec(ctx, assignPermissionToRole, arg.RoleID, arg.PermissionID)
 	return err
 }
 
@@ -40,8 +40,8 @@ ON p.id = rp.permission_id
 WHERE rp.role_id = $1
 `
 
-func (q *Queries) GetRolePermissions(ctx context.Context, roleID uuid.UUID) ([]AuthPermission, error) {
-	rows, err := q.db.QueryContext(ctx, getRolePermissions, roleID)
+func (q *Queries) GetRolePermissions(ctx context.Context, roleID pgtype.UUID) ([]AuthPermission, error) {
+	rows, err := q.db.Query(ctx, getRolePermissions, roleID)
 	if err != nil {
 		return nil, err
 	}
@@ -59,9 +59,6 @@ func (q *Queries) GetRolePermissions(ctx context.Context, roleID uuid.UUID) ([]A
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -76,11 +73,11 @@ AND permission_id = $2
 `
 
 type RemovePermissionFromRoleParams struct {
-	RoleID       uuid.UUID `json:"role_id"`
-	PermissionID uuid.UUID `json:"permission_id"`
+	RoleID       pgtype.UUID `json:"role_id"`
+	PermissionID pgtype.UUID `json:"permission_id"`
 }
 
 func (q *Queries) RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error {
-	_, err := q.db.ExecContext(ctx, removePermissionFromRole, arg.RoleID, arg.PermissionID)
+	_, err := q.db.Exec(ctx, removePermissionFromRole, arg.RoleID, arg.PermissionID)
 	return err
 }

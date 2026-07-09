@@ -7,9 +7,8 @@ package db
 
 import (
 	"context"
-	"database/sql"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createRole = `-- name: CreateRole :one
@@ -27,13 +26,13 @@ RETURNING id, name, description, created_at, updated_at
 `
 
 type CreateRoleParams struct {
-	ID          uuid.UUID      `json:"id"`
-	Name        string         `json:"name"`
-	Description sql.NullString `json:"description"`
+	ID          pgtype.UUID `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
 }
 
 func (q *Queries) CreateRole(ctx context.Context, arg CreateRoleParams) (AuthRole, error) {
-	row := q.db.QueryRowContext(ctx, createRole, arg.ID, arg.Name, arg.Description)
+	row := q.db.QueryRow(ctx, createRole, arg.ID, arg.Name, arg.Description)
 	var i AuthRole
 	err := row.Scan(
 		&i.ID,
@@ -50,8 +49,8 @@ DELETE FROM auth.roles
 WHERE id = $1
 `
 
-func (q *Queries) DeleteRole(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteRole, id)
+func (q *Queries) DeleteRole(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteRole, id)
 	return err
 }
 
@@ -61,8 +60,8 @@ FROM auth.roles
 WHERE id = $1
 `
 
-func (q *Queries) GetRoleByID(ctx context.Context, id uuid.UUID) (AuthRole, error) {
-	row := q.db.QueryRowContext(ctx, getRoleByID, id)
+func (q *Queries) GetRoleByID(ctx context.Context, id pgtype.UUID) (AuthRole, error) {
+	row := q.db.QueryRow(ctx, getRoleByID, id)
 	var i AuthRole
 	err := row.Scan(
 		&i.ID,
@@ -81,7 +80,7 @@ WHERE name = $1
 `
 
 func (q *Queries) GetRoleByName(ctx context.Context, name string) (AuthRole, error) {
-	row := q.db.QueryRowContext(ctx, getRoleByName, name)
+	row := q.db.QueryRow(ctx, getRoleByName, name)
 	var i AuthRole
 	err := row.Scan(
 		&i.ID,
@@ -100,7 +99,7 @@ ORDER BY name
 `
 
 func (q *Queries) ListRoles(ctx context.Context) ([]AuthRole, error) {
-	rows, err := q.db.QueryContext(ctx, listRoles)
+	rows, err := q.db.Query(ctx, listRoles)
 	if err != nil {
 		return nil, err
 	}
@@ -119,9 +118,6 @@ func (q *Queries) ListRoles(ctx context.Context) ([]AuthRole, error) {
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -138,12 +134,12 @@ WHERE id = $1
 `
 
 type UpdateRoleParams struct {
-	ID          uuid.UUID      `json:"id"`
-	Name        string         `json:"name"`
-	Description sql.NullString `json:"description"`
+	ID          pgtype.UUID `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
 }
 
 func (q *Queries) UpdateRole(ctx context.Context, arg UpdateRoleParams) error {
-	_, err := q.db.ExecContext(ctx, updateRole, arg.ID, arg.Name, arg.Description)
+	_, err := q.db.Exec(ctx, updateRole, arg.ID, arg.Name, arg.Description)
 	return err
 }

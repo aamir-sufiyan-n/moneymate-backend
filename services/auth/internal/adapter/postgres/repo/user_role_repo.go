@@ -1,10 +1,10 @@
-package postgres
+package repo
 
 import (
 	"context"
 
-	"github.com/google/uuid"
 	db "github.com/moneymate-2026/moneymate-backend/auth/sqlc/generated"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type UserRoleRepository struct {
@@ -33,7 +33,7 @@ func (r *UserRoleRepository) RemoveRole(
 
 func (r *UserRoleRepository) GetUserRoles(
 	ctx context.Context,
-	userID uuid.UUID,
+	userID pgtype.UUID,
 ) ([]db.AuthRole, error) {
 	return r.queries.GetUserRoles(ctx, userID)
 }

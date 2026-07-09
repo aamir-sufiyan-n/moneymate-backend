@@ -1,0 +1,22 @@
+# identical to auth .dockerignore
+.git
+.gitignore
+.env
+.env.prod
+.env.local
+**/.env
+**/.env.prod
+tmp/
+**/tmp/
+.idea/
+.vscode/
+*.swp
+.DS_Store
+docs/
+*.md
+**/*_test.go
+**/Dockerfile
+**/.dockerignore
+docker-compose*.yml
+Taskfile.yml
+Makefile

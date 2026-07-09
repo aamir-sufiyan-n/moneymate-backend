@@ -7,9 +7,8 @@ package db
 
 import (
 	"context"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createEmailVerification = `-- name: CreateEmailVerification :one
@@ -29,14 +28,14 @@ RETURNING id, user_id, token_hash, expires_at, used_at, created_at
 `
 
 type CreateEmailVerificationParams struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	TokenHash string    `json:"token_hash"`
-	ExpiresAt time.Time `json:"expires_at"`
+	ID        pgtype.UUID        `json:"id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	TokenHash string             `json:"token_hash"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
 func (q *Queries) CreateEmailVerification(ctx context.Context, arg CreateEmailVerificationParams) (AuthEmailVerification, error) {
-	row := q.db.QueryRowContext(ctx, createEmailVerification,
+	row := q.db.QueryRow(ctx, createEmailVerification,
 		arg.ID,
 		arg.UserID,
 		arg.TokenHash,
@@ -61,7 +60,7 @@ WHERE expires_at < NOW()
 `
 
 func (q *Queries) DeleteExpiredEmailVerifications(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, deleteExpiredEmailVerifications)
+	_, err := q.db.Exec(ctx, deleteExpiredEmailVerifications)
 	return err
 }
 
@@ -72,7 +71,7 @@ WHERE token_hash = $1
 `
 
 func (q *Queries) GetEmailVerification(ctx context.Context, tokenHash string) (AuthEmailVerification, error) {
-	row := q.db.QueryRowContext(ctx, getEmailVerification, tokenHash)
+	row := q.db.QueryRow(ctx, getEmailVerification, tokenHash)
 	var i AuthEmailVerification
 	err := row.Scan(
 		&i.ID,
@@ -92,6 +91,6 @@ WHERE token_hash = $1
 `
 
 func (q *Queries) MarkEmailVerificationUsed(ctx context.Context, tokenHash string) error {
-	_, err := q.db.ExecContext(ctx, markEmailVerificationUsed, tokenHash)
+	_, err := q.db.Exec(ctx, markEmailVerificationUsed, tokenHash)
 	return err
 }

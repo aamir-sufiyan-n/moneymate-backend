@@ -8,7 +8,7 @@ package db
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createOAuthAccount = `-- name: CreateOAuthAccount :one
@@ -28,14 +28,14 @@ RETURNING id, user_id, provider, provider_user_id, created_at
 `
 
 type CreateOAuthAccountParams struct {
-	ID             uuid.UUID `json:"id"`
-	UserID         uuid.UUID `json:"user_id"`
-	Provider       string    `json:"provider"`
-	ProviderUserID string    `json:"provider_user_id"`
+	ID             pgtype.UUID `json:"id"`
+	UserID         pgtype.UUID `json:"user_id"`
+	Provider       string      `json:"provider"`
+	ProviderUserID string      `json:"provider_user_id"`
 }
 
 func (q *Queries) CreateOAuthAccount(ctx context.Context, arg CreateOAuthAccountParams) (AuthOauthAccount, error) {
-	row := q.db.QueryRowContext(ctx, createOAuthAccount,
+	row := q.db.QueryRow(ctx, createOAuthAccount,
 		arg.ID,
 		arg.UserID,
 		arg.Provider,
@@ -65,7 +65,7 @@ type GetOAuthAccountParams struct {
 }
 
 func (q *Queries) GetOAuthAccount(ctx context.Context, arg GetOAuthAccountParams) (AuthOauthAccount, error) {
-	row := q.db.QueryRowContext(ctx, getOAuthAccount, arg.Provider, arg.ProviderUserID)
+	row := q.db.QueryRow(ctx, getOAuthAccount, arg.Provider, arg.ProviderUserID)
 	var i AuthOauthAccount
 	err := row.Scan(
 		&i.ID,
@@ -83,8 +83,8 @@ FROM auth.oauth_accounts
 WHERE user_id = $1
 `
 
-func (q *Queries) GetOAuthAccountsByUser(ctx context.Context, userID uuid.UUID) ([]AuthOauthAccount, error) {
-	rows, err := q.db.QueryContext(ctx, getOAuthAccountsByUser, userID)
+func (q *Queries) GetOAuthAccountsByUser(ctx context.Context, userID pgtype.UUID) ([]AuthOauthAccount, error) {
+	rows, err := q.db.Query(ctx, getOAuthAccountsByUser, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -102,9 +102,6 @@ func (q *Queries) GetOAuthAccountsByUser(ctx context.Context, userID uuid.UUID) 
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

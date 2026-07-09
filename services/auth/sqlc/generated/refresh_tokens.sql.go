@@ -7,9 +7,8 @@ package db
 
 import (
 	"context"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createRefreshToken = `-- name: CreateRefreshToken :one
@@ -29,14 +28,14 @@ RETURNING id, user_id, token_hash, expires_at, revoked_at, created_at
 `
 
 type CreateRefreshTokenParams struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	TokenHash string    `json:"token_hash"`
-	ExpiresAt time.Time `json:"expires_at"`
+	ID        pgtype.UUID        `json:"id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	TokenHash string             `json:"token_hash"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
 func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (AuthRefreshToken, error) {
-	row := q.db.QueryRowContext(ctx, createRefreshToken,
+	row := q.db.QueryRow(ctx, createRefreshToken,
 		arg.ID,
 		arg.UserID,
 		arg.TokenHash,
@@ -61,7 +60,7 @@ WHERE expires_at < NOW()
 `
 
 func (q *Queries) DeleteExpiredRefreshTokens(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, deleteExpiredRefreshTokens)
+	_, err := q.db.Exec(ctx, deleteExpiredRefreshTokens)
 	return err
 }
 
@@ -72,7 +71,7 @@ WHERE token_hash = $1
 `
 
 func (q *Queries) GetRefreshToken(ctx context.Context, tokenHash string) (AuthRefreshToken, error) {
-	row := q.db.QueryRowContext(ctx, getRefreshToken, tokenHash)
+	row := q.db.QueryRow(ctx, getRefreshToken, tokenHash)
 	var i AuthRefreshToken
 	err := row.Scan(
 		&i.ID,
@@ -92,6 +91,6 @@ WHERE token_hash = $1
 `
 
 func (q *Queries) RevokeRefreshToken(ctx context.Context, tokenHash string) error {
-	_, err := q.db.ExecContext(ctx, revokeRefreshToken, tokenHash)
+	_, err := q.db.Exec(ctx, revokeRefreshToken, tokenHash)
 	return err
 }

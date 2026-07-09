@@ -7,9 +7,8 @@ package db
 
 import (
 	"context"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createPasswordResetToken = `-- name: CreatePasswordResetToken :one
@@ -29,14 +28,14 @@ RETURNING id, user_id, token_hash, expires_at, used_at, created_at
 `
 
 type CreatePasswordResetTokenParams struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	TokenHash string    `json:"token_hash"`
-	ExpiresAt time.Time `json:"expires_at"`
+	ID        pgtype.UUID        `json:"id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	TokenHash string             `json:"token_hash"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
 func (q *Queries) CreatePasswordResetToken(ctx context.Context, arg CreatePasswordResetTokenParams) (AuthPasswordResetToken, error) {
-	row := q.db.QueryRowContext(ctx, createPasswordResetToken,
+	row := q.db.QueryRow(ctx, createPasswordResetToken,
 		arg.ID,
 		arg.UserID,
 		arg.TokenHash,
@@ -61,7 +60,7 @@ WHERE expires_at < NOW()
 `
 
 func (q *Queries) DeleteExpiredPasswordResetTokens(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, deleteExpiredPasswordResetTokens)
+	_, err := q.db.Exec(ctx, deleteExpiredPasswordResetTokens)
 	return err
 }
 
@@ -72,7 +71,7 @@ WHERE token_hash = $1
 `
 
 func (q *Queries) GetPasswordResetToken(ctx context.Context, tokenHash string) (AuthPasswordResetToken, error) {
-	row := q.db.QueryRowContext(ctx, getPasswordResetToken, tokenHash)
+	row := q.db.QueryRow(ctx, getPasswordResetToken, tokenHash)
 	var i AuthPasswordResetToken
 	err := row.Scan(
 		&i.ID,
@@ -92,6 +91,6 @@ WHERE token_hash = $1
 `
 
 func (q *Queries) MarkPasswordResetTokenUsed(ctx context.Context, tokenHash string) error {
-	_, err := q.db.ExecContext(ctx, markPasswordResetTokenUsed, tokenHash)
+	_, err := q.db.Exec(ctx, markPasswordResetTokenUsed, tokenHash)
 	return err
 }

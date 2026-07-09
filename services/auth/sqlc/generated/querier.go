@@ -7,7 +7,7 @@ package db
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
@@ -23,22 +23,22 @@ type Querier interface {
 	DeleteExpiredEmailVerifications(ctx context.Context) error
 	DeleteExpiredPasswordResetTokens(ctx context.Context) error
 	DeleteExpiredRefreshTokens(ctx context.Context) error
-	DeletePermission(ctx context.Context, id uuid.UUID) error
-	DeleteRole(ctx context.Context, id uuid.UUID) error
-	DeleteUser(ctx context.Context, id uuid.UUID) error
+	DeletePermission(ctx context.Context, id pgtype.UUID) error
+	DeleteRole(ctx context.Context, id pgtype.UUID) error
+	DeleteUser(ctx context.Context, id pgtype.UUID) error
 	GetEmailVerification(ctx context.Context, tokenHash string) (AuthEmailVerification, error)
 	GetOAuthAccount(ctx context.Context, arg GetOAuthAccountParams) (AuthOauthAccount, error)
-	GetOAuthAccountsByUser(ctx context.Context, userID uuid.UUID) ([]AuthOauthAccount, error)
+	GetOAuthAccountsByUser(ctx context.Context, userID pgtype.UUID) ([]AuthOauthAccount, error)
 	GetPasswordResetToken(ctx context.Context, tokenHash string) (AuthPasswordResetToken, error)
-	GetPermissionByID(ctx context.Context, id uuid.UUID) (AuthPermission, error)
+	GetPermissionByID(ctx context.Context, id pgtype.UUID) (AuthPermission, error)
 	GetPermissionByName(ctx context.Context, name string) (AuthPermission, error)
 	GetRefreshToken(ctx context.Context, tokenHash string) (AuthRefreshToken, error)
-	GetRoleByID(ctx context.Context, id uuid.UUID) (AuthRole, error)
+	GetRoleByID(ctx context.Context, id pgtype.UUID) (AuthRole, error)
 	GetRoleByName(ctx context.Context, name string) (AuthRole, error)
-	GetRolePermissions(ctx context.Context, roleID uuid.UUID) ([]AuthPermission, error)
+	GetRolePermissions(ctx context.Context, roleID pgtype.UUID) ([]AuthPermission, error)
 	GetUserByEmail(ctx context.Context, email string) (AuthUser, error)
-	GetUserByID(ctx context.Context, id uuid.UUID) (AuthUser, error)
-	GetUserRoles(ctx context.Context, userID uuid.UUID) ([]AuthRole, error)
+	GetUserByID(ctx context.Context, id pgtype.UUID) (AuthUser, error)
+	GetUserRoles(ctx context.Context, userID pgtype.UUID) ([]AuthRole, error)
 	ListPermissions(ctx context.Context) ([]AuthPermission, error)
 	ListRoles(ctx context.Context) ([]AuthRole, error)
 	MarkEmailVerificationUsed(ctx context.Context, tokenHash string) error
@@ -49,7 +49,7 @@ type Querier interface {
 	UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) error
 	UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) error
-	VerifyEmail(ctx context.Context, id uuid.UUID) error
+	VerifyEmail(ctx context.Context, id pgtype.UUID) error
 }
 
 var _ Querier = (*Queries)(nil)

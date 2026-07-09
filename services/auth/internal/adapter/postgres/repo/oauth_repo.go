@@ -1,10 +1,10 @@
-package postgres
+package repo
 
 import (
 	"context"
 
 	db "github.com/moneymate-2026/moneymate-backend/auth/sqlc/generated"
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type OAuthRepository struct {
@@ -33,7 +33,7 @@ func (r *OAuthRepository) GetByProvider(
 
 func (r *OAuthRepository) GetByUser(
 	ctx context.Context,
-	userID uuid.UUID,
+	userID pgtype.UUID,
 ) ([]db.AuthOauthAccount, error) {
 	return r.queries.GetOAuthAccountsByUser(ctx, userID)
 }

@@ -7,9 +7,8 @@ package db
 
 import (
 	"context"
-	"database/sql"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createPermission = `-- name: CreatePermission :one
@@ -27,13 +26,13 @@ RETURNING id, name, description, created_at
 `
 
 type CreatePermissionParams struct {
-	ID          uuid.UUID      `json:"id"`
-	Name        string         `json:"name"`
-	Description sql.NullString `json:"description"`
+	ID          pgtype.UUID `json:"id"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
 }
 
 func (q *Queries) CreatePermission(ctx context.Context, arg CreatePermissionParams) (AuthPermission, error) {
-	row := q.db.QueryRowContext(ctx, createPermission, arg.ID, arg.Name, arg.Description)
+	row := q.db.QueryRow(ctx, createPermission, arg.ID, arg.Name, arg.Description)
 	var i AuthPermission
 	err := row.Scan(
 		&i.ID,
@@ -49,8 +48,8 @@ DELETE FROM auth.permissions
 WHERE id = $1
 `
 
-func (q *Queries) DeletePermission(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deletePermission, id)
+func (q *Queries) DeletePermission(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deletePermission, id)
 	return err
 }
 
@@ -60,8 +59,8 @@ FROM auth.permissions
 WHERE id = $1
 `
 
-func (q *Queries) GetPermissionByID(ctx context.Context, id uuid.UUID) (AuthPermission, error) {
-	row := q.db.QueryRowContext(ctx, getPermissionByID, id)
+func (q *Queries) GetPermissionByID(ctx context.Context, id pgtype.UUID) (AuthPermission, error) {
+	row := q.db.QueryRow(ctx, getPermissionByID, id)
 	var i AuthPermission
 	err := row.Scan(
 		&i.ID,
@@ -79,7 +78,7 @@ WHERE name = $1
 `
 
 func (q *Queries) GetPermissionByName(ctx context.Context, name string) (AuthPermission, error) {
-	row := q.db.QueryRowContext(ctx, getPermissionByName, name)
+	row := q.db.QueryRow(ctx, getPermissionByName, name)
 	var i AuthPermission
 	err := row.Scan(
 		&i.ID,
@@ -97,7 +96,7 @@ ORDER BY name
 `
 
 func (q *Queries) ListPermissions(ctx context.Context) ([]AuthPermission, error) {
-	rows, err := q.db.QueryContext(ctx, listPermissions)
+	rows, err := q.db.Query(ctx, listPermissions)
 	if err != nil {
 		return nil, err
 	}
@@ -114,9 +113,6 @@ func (q *Queries) ListPermissions(ctx context.Context) ([]AuthPermission, error)
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

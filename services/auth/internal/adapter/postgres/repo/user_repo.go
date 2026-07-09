@@ -1,10 +1,10 @@
-package postgres
+package repo
 
 import (
 	"context"
 
 	db "github.com/moneymate-2026/moneymate-backend/auth/sqlc/generated"
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type UserRepository struct {
@@ -21,7 +21,7 @@ func (r *UserRepository) Create(ctx context.Context, params db.CreateUserParams)
 	return r.queries.CreateUser(ctx, params)
 }
 
-func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (db.AuthUser, error) {
+func (r *UserRepository) GetByID(ctx context.Context, id pgtype.UUID) (db.AuthUser, error) {
 	return r.queries.GetUserByID(ctx, id)
 }
 
@@ -29,7 +29,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (db.AuthU
 	return r.queries.GetUserByEmail(ctx, email)
 }
 
-func (r *UserRepository) VerifyEmail(ctx context.Context, id uuid.UUID) error {
+func (r *UserRepository) VerifyEmail(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.VerifyEmail(ctx, id)
 }
 
@@ -41,6 +41,6 @@ func (r *UserRepository) UpdateStatus(ctx context.Context, params db.UpdateUserS
 	return r.queries.UpdateUserStatus(ctx, params)
 }
 
-func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
+func (r *UserRepository) Delete(ctx context.Context, id pgtype.UUID) error {
 	return r.queries.DeleteUser(ctx, id)
 }

@@ -1,0 +1,30 @@
+server:
+  http_addr: ":8081"
+  grpc_addr: ":9091"
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 60s
+
+database:
+  max_open_conns: 25
+  min_open_conns: 5
+  max_conn_lifetime: 15m
+  max_idle_time: 5m
+
+redis:
+  token_ttl: 60s
+  otp_ttl: 5m
+  pin_lockout_ttl: 15m
+
+jwt:
+  access_expiry_minutes: 15
+  refresh_expiry_hours: 720
+
+argon2:
+  memory: 65536
+  iterations: 3
+  threads: 4
+  key_length: 32
+
+log:
+  level: info
