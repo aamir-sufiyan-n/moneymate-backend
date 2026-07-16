@@ -14,21 +14,25 @@ import (
 const assignRoleToUser = `-- name: AssignRoleToUser :exec
 INSERT INTO auth.user_roles (
     user_id,
-    role_id
+    role_id,
+    granted_by
 )
 VALUES (
     $1,
-    $2
+    $2,
+    $3
 )
+ON CONFLICT (user_id, role_id) DO NOTHING
 `
 
 type AssignRoleToUserParams struct {
-	UserID pgtype.UUID `json:"user_id"`
-	RoleID pgtype.UUID `json:"role_id"`
+	UserID    pgtype.UUID `json:"user_id"`
+	RoleID    pgtype.UUID `json:"role_id"`
+	GrantedBy pgtype.UUID `json:"granted_by"`
 }
 
 func (q *Queries) AssignRoleToUser(ctx context.Context, arg AssignRoleToUserParams) error {
-	_, err := q.db.Exec(ctx, assignRoleToUser, arg.UserID, arg.RoleID)
+	_, err := q.db.Exec(ctx, assignRoleToUser, arg.UserID, arg.RoleID, arg.GrantedBy)
 	return err
 }
 

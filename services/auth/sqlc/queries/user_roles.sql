@@ -1,12 +1,15 @@
 -- name: AssignRoleToUser :exec
 INSERT INTO auth.user_roles (
     user_id,
-    role_id
+    role_id,
+    granted_by
 )
 VALUES (
     $1,
-    $2
-);
+    $2,
+    $3
+)
+ON CONFLICT (user_id, role_id) DO NOTHING;
 
 -- name: RemoveRoleFromUser :exec
 DELETE

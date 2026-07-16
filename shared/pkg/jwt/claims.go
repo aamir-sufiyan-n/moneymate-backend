@@ -7,7 +7,6 @@ type AccesClaims struct {
     UserID       string   `json:"uid"`
     Handle       string   `json:"handle"`
     Roles        []string `json:"roles"`
-    Permissions  []string `json:"permissions"`
     TokenVersion int64    `json:"ver"`
 }
 

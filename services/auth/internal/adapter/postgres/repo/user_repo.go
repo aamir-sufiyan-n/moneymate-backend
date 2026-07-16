@@ -13,6 +13,7 @@ import (
 	"github.com/moneymate-2026/moneymate-backend/auth/internal/domain"
 	db "github.com/moneymate-2026/moneymate-backend/auth/sqlc/generated"
 	apperrors "github.com/moneymate-2026/moneymate-backend/shared/pkg/errors"
+	"github.com/moneymate-2026/moneymate-backend/shared/pkg/pgxtx"
 )
 
 type userRepo struct {
@@ -25,10 +26,18 @@ func NewUserRepo(pool *pgxpool.Pool) domain.UserRepository {
     }
 }
 
+
+func (r *userRepo) queries(ctx context.Context) *db.Queries {
+	if tx, ok := pgxtx.FromContext(ctx); ok {
+		return r.q.WithTx(tx)
+	}
+	return r.q
+}
+
 // ── Create ────────────────────────────────────────────────────────
 
 func (r *userRepo) Create(ctx context.Context, user *domain.User) error {
-    result, err := r.q.CreateUser(ctx, db.CreateUserParams{
+    result, err := r.queries(ctx).CreateUser(ctx, db.CreateUserParams{
         ID:           uuidToPgtype(user.ID),
         Email:        user.Email,
         Phone:        stringPtrToText(user.Phone),
@@ -49,6 +58,8 @@ func (r *userRepo) Create(ctx context.Context, user *domain.User) error {
     mapAuthUserToDomain(result, user)
     return nil
 }
+
+
 
 // ── Reads ─────────────────────────────────────────────────────────
 
@@ -122,8 +133,6 @@ func (r *userRepo) PhoneExists(ctx context.Context, phone string) (bool, error) 
     return exists, nil
 }
 
-// CheckUniqueFields checks email, handle, phone in one shot
-// avoids three separate round trips during registration
 func (r *userRepo) CheckUniqueFields(ctx context.Context, email, handle, phone string) error {
     emailExists, err := r.EmailExists(ctx, email)
     if err != nil {
@@ -179,7 +188,7 @@ func (r *userRepo) UpdateStatus(ctx context.Context, userID uuid.UUID, status do
 }
 
 func (r *userRepo) VerifyEmail(ctx context.Context, userID uuid.UUID) error {
-    if err := r.q.VerifyEmail(ctx, uuidToPgtype(userID)); err != nil {
+    if err :=  r.queries(ctx).VerifyEmail(ctx, uuidToPgtype(userID)); err != nil {
         return fmt.Errorf("verify email: %w", err)
     }
     return nil

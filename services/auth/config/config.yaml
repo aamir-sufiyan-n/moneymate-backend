@@ -13,12 +13,24 @@ database:
 
 redis:
   token_ttl: 60s
-  otp_ttl: 5m
   pin_lockout_ttl: 15m
+
+otp:
+  ttl: 5m
+  length: 6
+  resend_cooldown: 60s
+  max_verify_attempts: 5
+  email_verified_ttl: 15m
 
 jwt:
   access_expiry_minutes: 15
   refresh_expiry_hours: 720
+
+smtp:
+  host: "smtp.resend.com"   
+  port: 587
+  from_address: "noreply@moneymate.app"
+  from_name: "MoneyMate"
 
 argon2:
   memory: 65536

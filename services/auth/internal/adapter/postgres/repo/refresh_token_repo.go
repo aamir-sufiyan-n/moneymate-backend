@@ -52,3 +52,6 @@ func (r *refreshTokenRepo) Revoke(ctx context.Context, tokenHash string) error {
 func (r *refreshTokenRepo) DeleteExpired(ctx context.Context) error {
 	return apperrors.MapDBErrors(r.q.DeleteExpiredRefreshTokens(ctx))
 }
+func (r *refreshTokenRepo) RevokeAllForUser(ctx context.Context, userID uuid.UUID) error {
+	return apperrors.MapDBErrors(r.q.RevokeAllRefreshTokensForUser(ctx, uuidToPgtype(userID)))
+}

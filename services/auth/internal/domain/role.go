@@ -16,6 +16,12 @@ type Role struct {
 	UpdatedAt   time.Time
 }
 
+type AccountType string
+const (
+	AccountTypeUser     AccountType = "user"
+	AccountTypeMerchant AccountType = "merchant"
+)
+
 type RoleRepository interface {
 	// ── Role CRUD ─────────────────────────────────────────────────
 	Create(ctx context.Context, role *Role) error
@@ -26,7 +32,7 @@ type RoleRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 
 	// ── User-Role Relationships ───────────────────────────────────
-	AssignRoleToUser(ctx context.Context, userID, roleID uuid.UUID) error
+	AssignRoleToUser(ctx context.Context, userID, roleID uuid.UUID, grantedBy *uuid.UUID) error
 	RemoveRoleFromUser(ctx context.Context, userID, roleID uuid.UUID) error
 	GetUserRoles(ctx context.Context, userID uuid.UUID) ([]Role, error)
 }

@@ -65,7 +65,6 @@ func GenerateAccessToken(p AccessTokenParams, cfg Config) (string, error) {
         UserID:       p.UserID,
         Handle:       p.Handle,
         Roles:        p.Roles,
-        Permissions:  p.Permissions,
         TokenVersion: p.TokenVersion,
     }
 

@@ -33,6 +33,22 @@ type DatabaseConfig struct {
 
 	DSN string
 }
+type OTPConfig struct {
+    TTL               time.Duration `mapstructure:"ttl"`
+    Length            int           `mapstructure:"length"`
+    ResendCooldown    time.Duration `mapstructure:"resend_cooldown"`
+    MaxVerifyAttempts int           `mapstructure:"max_verify_attempts"`
+    EmailVerifiedTTL  time.Duration `mapstructure:"email_verified_ttl"`
+}
+
+type SMTPConfig struct {
+    Host        string `mapstructure:"host"`
+    Port        int    `mapstructure:"port"`
+    FromAddress string `mapstructure:"from_address"`
+    FromName    string `mapstructure:"from_name"`
+    Username    string // from env
+    Password    string // from env
+}
 
 type RedisConfig struct {
     Addr           string        `mapstructure:"addr"`
@@ -66,9 +82,11 @@ type Config struct {
     Server   ServerConfig   `mapstructure:"server"`
     Database DatabaseConfig `mapstructure:"database"`
     Redis    RedisConfig    `mapstructure:"redis"`
+    OTP     OTPConfig    `mapstructure:"otp"`
     JWT      JWTConfig      `mapstructure:"jwt"`
     Argon2   Argon2Config   `mapstructure:"argon2"`
     Log      LogConfig      `mapstructure:"log"`
+    SMTP     SMTPConfig     `mapstructure:"smtp"`
 }
 
 
@@ -132,21 +150,32 @@ func validate(cfg *Config) error {
         value string
         name  string
     }{
-        {cfg.Database.User,       "POSTGRES_USER"},
-        {cfg.Database.Password,   "POSTGRES_PASSWORD"},
-        {cfg.Database.Host,       "POSTGRES_HOST"},
-        {cfg.Database.Name,       "POSTGRES_DB"},
-        {cfg.Redis.Addr,          "REDIS_ADDR"},
-        {cfg.JWT.AccessSecret,    "JWT_ACCESS_SECRET"},
-        {cfg.JWT.RefreshSecret,   "JWT_REFRESH_SECRET"},
+        {cfg.Database.User, "POSTGRES_USER"},
+        {cfg.Database.Password, "POSTGRES_PASSWORD"},
+        {cfg.Database.Host, "POSTGRES_HOST"},
+        {cfg.Database.Name, "POSTGRES_DB"},
+        {cfg.Redis.Addr, "REDIS_ADDR"},
+        {cfg.JWT.AccessSecret, "JWT_ACCESS_SECRET"},
+        {cfg.JWT.RefreshSecret, "JWT_REFRESH_SECRET"},
+        {cfg.SMTP.Username, "SMTP_USERNAME"},
+        {cfg.SMTP.Password, "SMTP_PASSWORD"},
     }
-
-    
 
     for _, r := range required {
         if r.value == "" {
             return fmt.Errorf("required env var not set: %s", r.name)
         }
     }
+
+    if cfg.OTP.Length < 4 || cfg.OTP.Length > 10 {
+        return fmt.Errorf("otp.length must be between 4 and 10, got %d", cfg.OTP.Length)
+    }
+    if cfg.OTP.MaxVerifyAttempts < 1 {
+        return fmt.Errorf("otp.max_verify_attempts must be at least 1, got %d", cfg.OTP.MaxVerifyAttempts)
+    }
+    if cfg.OTP.TTL <= 0 {
+        return fmt.Errorf("otp.ttl must be positive")
+    }
+
     return nil
 }

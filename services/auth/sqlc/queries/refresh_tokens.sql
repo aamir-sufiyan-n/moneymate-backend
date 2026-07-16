@@ -27,3 +27,8 @@ WHERE token_hash = $1;
 DELETE
 FROM auth.refresh_tokens
 WHERE expires_at < NOW();
+
+-- name: RevokeAllRefreshTokensForUser :exec
+UPDATE auth.refresh_tokens
+SET revoked_at = now()
+WHERE user_id = $1 AND revoked_at IS NULL;

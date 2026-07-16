@@ -31,6 +31,7 @@ var (
 	ErrOTPInvalid        = errors.New("otp invalid")
 	ErrOTPTimout         = errors.New("otp max tries reached")
 	ErrOAuthFailure      = errors.New("oauth authentication failed")
+	 ErrEmailNotVerified = errors.New("email not verified")
 )
 
 // Financial & Transaction Specific
@@ -49,11 +50,13 @@ var(
 
 // AppError represents a structured HTTP error safely returned to the frontend.
 type AppError struct {
-	StatusCode int    `json:"-"`       // Used by Fiber, never sent in JSON body
-	Code       string `json:"code"`    // e.g., "INSUFFICIENT_FUNDS"
-	Message    string `json:"message"` // Safe for the user to read
-	Err        error  `json:"-"`       // The raw internal error for your server logs
+	StatusCode int    `json:"-"`      
+	Code       string `json:"code"`    
+	Message    string `json:"message"` 
+	Details    interface{} `json:"details,omitempty"`
+	Err        error  `json:"-"`      
 }
+
 
 // Error implements the standard Go error interface.
 func (e *AppError) Error() string {
@@ -76,6 +79,15 @@ func NewAppError(statusCode int, code, message string, err error) *AppError {
 		Message:    message,
 		Err:        err,
 	}
+}
+func NewAppErrorWithDetails(statusCode int, code, message string, details interface{}, err error) *AppError {
+    return &AppError{
+        StatusCode: statusCode,
+        Code:       code,
+        Message:    message,
+        Details:    details,
+		Err: err,
+    }
 }
 
 // MapDBErrors translates raw Postgres errors into domain sentinel errors.
@@ -139,6 +151,8 @@ func ParseError(err error) *AppError {
 
 	case errors.Is(err, ErrUnauthorized):
 		return NewAppError(http.StatusUnauthorized, "UNAUTHORIZED", "Please log in to continue.", err)
+	case errors.Is(err, ErrEmailNotVerified):
+    return NewAppError(http.StatusForbidden, "EMAIL_NOT_VERIFIED", "Please verify your email before completing registration.", err)
 
 	default:
 		return NewAppError(http.StatusInternalServerError, "INTERNAL_ERROR", "Something went wrong on our end. Please try again later.", err)

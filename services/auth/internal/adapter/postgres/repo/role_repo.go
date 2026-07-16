@@ -2,14 +2,17 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/moneymate-2026/moneymate-backend/auth/internal/domain"
 	db "github.com/moneymate-2026/moneymate-backend/auth/sqlc/generated"
 	apperrors "github.com/moneymate-2026/moneymate-backend/shared/pkg/errors"
+	"github.com/moneymate-2026/moneymate-backend/shared/pkg/pgxtx"
 )
 
 type roleRepo struct {
@@ -20,6 +23,13 @@ func NewRoleRepo(pool *pgxpool.Pool) domain.RoleRepository {
 	return &roleRepo{
 		q: db.New(pool),
 	}
+}
+
+func (r *roleRepo) queries(ctx context.Context) *db.Queries {
+	if tx, ok := pgxtx.FromContext(ctx); ok {
+		return r.q.WithTx(tx)
+	}
+	return r.q
 }
 
 // ── Role CRUD ─────────────────────────────────────────────────────
@@ -106,13 +116,24 @@ func (r *roleRepo) Delete(ctx context.Context, id uuid.UUID) error {
 
 // ── User-Role Relationships ───────────────────────────────────────
 
-func (r *roleRepo) AssignRoleToUser(ctx context.Context, userID, roleID uuid.UUID) error {
-	err := r.q.AssignRoleToUser(ctx, db.AssignRoleToUserParams{
-		UserID: uuidToPgtype(userID),
-		RoleID: uuidToPgtype(roleID),
-	})
+func (r *roleRepo) AssignRoleToUser(ctx context.Context, userID, roleID uuid.UUID, grantedBy *uuid.UUID) error {
+	 var grantedByParam pgtype.UUID
+    if grantedBy != nil {
+        grantedByParam = uuidToPgtype(*grantedBy)
+    } else {
+        grantedByParam = pgtype.UUID{Valid: false} // NULL — system-assigned, no human actor
+    }
+
+	err := r.queries(ctx).AssignRoleToUser(ctx, db.AssignRoleToUserParams{
+        UserID:    uuidToPgtype(userID),
+        RoleID:    uuidToPgtype(roleID),
+        GrantedBy: grantedByParam,
+    })
 	if err != nil {
 		mappedErr := apperrors.MapDBErrors(err)
+		if errors.Is(mappedErr, apperrors.ErrAlreadyExists) {
+                return nil
+            }
 		if mappedErr != err {
 			return mappedErr
 		}

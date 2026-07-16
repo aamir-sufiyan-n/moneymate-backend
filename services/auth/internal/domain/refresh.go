@@ -20,4 +20,5 @@ type RefreshTokenRepository interface {
 	GetByTokenHash(ctx context.Context, tokenHash string) (*RefreshToken, error)
 	Revoke(ctx context.Context, tokenHash string) error
 	DeleteExpired(ctx context.Context) error
+	RevokeAllForUser(ctx context.Context, userID uuid.UUID) error
 } 	

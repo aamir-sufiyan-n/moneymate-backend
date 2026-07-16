@@ -51,6 +51,7 @@ type Querier interface {
 	RemovePermissionFromRole(ctx context.Context, arg RemovePermissionFromRoleParams) error
 	RemoveRoleFromUser(ctx context.Context, arg RemoveRoleFromUserParams) error
 	ResetPINFailedAttempts(ctx context.Context, userID pgtype.UUID) error
+	RevokeAllRefreshTokensForUser(ctx context.Context, userID pgtype.UUID) error
 	RevokeRefreshToken(ctx context.Context, tokenHash string) error
 	SoftDeleteUser(ctx context.Context, id pgtype.UUID) error
 	UpdatePINHash(ctx context.Context, arg UpdatePINHashParams) error
