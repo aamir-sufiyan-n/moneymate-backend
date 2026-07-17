@@ -1,88 +1,69 @@
 package http
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gofiber/fiber/v2/middleware/recover"
-	
+	"fmt"
+
+	"github.com/gofiber/fiber/v3"
+
 	"github.com/moneymate-2026/moneymate-backend/gateway/internal/middlewares"
 	"github.com/moneymate-2026/moneymate-backend/gateway/internal/proxy"
+	ws "github.com/moneymate-2026/moneymate-backend/gateway/internal/websocket"
 )
 
-type Router struct {
-	app        *fiber.App
-	authClient proxy.AuthClient
-}
+func RegisterRoutes(
+	app *fiber.App,
+	authMiddleware fiber.Handler,
+	authClient proxy.AuthClient,
+	registry *proxy.ServiceRegistry,
+	hub *ws.Hub,
+) {
+	api := app.Group("/api/v1")
 
-func NewRouter(auth proxy.AuthClient) *Router {
-	app := fiber.New(fiber.Config{
-		DisableStartupMessage: true,
-		Prefork:               false, 
-		ReduceMemoryUsage:     true,
+	api.Get("/health", func(c fiber.Ctx) error {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"status": "ok",
+			"service": "gateway",
+		})
 	})
 
-	app.Use(recover.New())
-	app.Use(logger.New())
-
-	return &Router{
-		app:        app,
-		authClient: auth,
-	}
-}
-
-func (r *Router) SetupRoutes() {
-	api := r.app.Group("/api/v1")
-
-	// Public Route: Health check for load balancers
-	api.Get("/health", func(c *fiber.Ctx) error {
-		return c.SendStatus(fiber.StatusOK)
-	})
-
-	// Public Routes: Auth endpoints (Login/Register stubs)
 	authGroup := api.Group("/auth")
-	authGroup.Post("/login", r.handleLogin())
-	authGroup.Post("/register", r.handleRegister())
+	authGroup.Post("/login", func(c fiber.Ctx) error {
+		return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{
+			"error": "login pending gRPC contract",
+		})
+	})
+	authGroup.Post("/register", func(c fiber.Ctx) error {
+		return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{
+			"error": "register pending gRPC contract",
+		})
+	})
 
-	// --- PROTECTED ROUTES ---
-	// We apply the RequireAuth middleware here. Any route added to 'secure' MUST have a valid token.
-	secure := api.Group("/secure", middlewares.RequireAuth(r.authClient))
-	
-	secure.Get("/profile", r.handleProfile())
-}
-
-func (r *Router) Listen(addr string) error {
-	return r.app.Listen(addr)
-}
-
-func (r *Router) Shutdown() error {
-	return r.app.Shutdown()
-}
-
-// --- Handler Implementations ---
-
-func (r *Router) handleLogin() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "login pending gRPC contract"})
-	}
-}
-
-func (r *Router) handleRegister() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "register pending gRPC contract"})
-	}
-}
-
-func (r *Router) handleProfile() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		// Extract the user ID that the middleware securely placed in context
+	secure := api.Group("/secure")
+	secure.Use(authMiddleware)
+	secure.Get("/profile", func(c fiber.Ctx) error {
 		userID := c.Locals("user_id").(string)
-		
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
 			"success": true,
-			"message": "Secure profile accessed",
 			"data": fiber.Map{
 				"user_id": userID,
 			},
 		})
+	})
+
+	merchant := api.Group("/merchant")
+	merchant.Use(authMiddleware)
+	merchant.Use(middlewares.RequireRole("merchant"))
+	merchant.Get("/dashboard", func(c fiber.Ctx) error {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"message": "merchant dashboard placeholder",
+		})
+	})
+
+	downstreamServices := []string{"payment", "merchant", "campaign", "debt", "pod", "scheduler", "referral", "rewards", "routing", "notification"}
+	for _, svc := range downstreamServices {
+		svcName := svc
+		api.All(fmt.Sprintf("/%s/*", svcName), authMiddleware, proxy.ProxyToService(registry, svcName))
 	}
+
+	ws.RegisterWebSocketRoutes(app, hub, authClient)
 }

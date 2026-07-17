@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/moneymate-2026/moneymate-backend/shared/proto/auth";
+
+// AuthService is the gRPC contract between the API Gateway and auth-svc.
+// The gateway calls these methods to verify tokens and extract user identity.
+service AuthService {
+    
+  // VerifyAccessToken validates a JWT access token and returns the claims.
+  // Called on every authenticated request by the JWT middleware.
+  rpc VerifyAccessToken(VerifyAccessTokenRequest) returns (VerifyAccessTokenResponse);
+
+  // VerifyTransactionToken validates a short-lived transaction token
+  // issued for high-value operations (payments above threshold).
+  rpc VerifyTransactionToken(VerifyTransactionTokenRequest) returns (VerifyTransactionTokenResponse);
+
+  // GetUserByID returns basic user info needed by the gateway for
+  // WebSocket session mapping and role resolution.
+  rpc GetUserByID(GetUserByIDRequest) returns (GetUserByIDResponse);
+}
+
+message VerifyAccessTokenRequest {
+  string token = 1;
+}
+
+message VerifyAccessTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  string email = 3;
+  string role = 4;        // "user" or "merchant"
+  string merchant_id = 5; // populated only when role == "merchant"
+  int64 expires_at = 6;   // unix timestamp
+}
+
+message VerifyTransactionTokenRequest {
+  string token = 1;
+  string transaction_id = 2;
+}
+
+message VerifyTransactionTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  string transaction_id = 3;
+}
+
+message GetUserByIDRequest {
+  string user_id = 1;
+}
+
+message GetUserByIDResponse {
+  string user_id = 1;
+  string email = 2;
+  string full_name = 3;
+  string handle = 4;
+  string role = 5;
+}

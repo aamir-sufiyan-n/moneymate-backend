@@ -1,42 +1,96 @@
 package main
 
 import (
-	// "log"
-	// "os"
-	// "os/signal"
-	// "syscall"
-	// // Using YOUR actual module path
-	// "github.com/moneymate-2026/moneymate-backend/gateway/config"
-	// "github.com/moneymate-2026/moneymate-backend/gateway/internal/proxy"
-	// "github.com/moneymate-2026/moneymate-backend/gateway/internal/transport/http"
+	"context"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/gofiber/fiber/v3"
+	"github.com/moneymate-2026/moneymate-backend/gateway/config"
+	"github.com/moneymate-2026/moneymate-backend/gateway/internal/middlewares"
+	"github.com/moneymate-2026/moneymate-backend/gateway/internal/proxy"
+	"github.com/moneymate-2026/moneymate-backend/gateway/internal/transport/http"
+	"github.com/moneymate-2026/moneymate-backend/gateway/internal/tracing"
+	ws "github.com/moneymate-2026/moneymate-backend/gateway/internal/websocket"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
-	// cfg := config.LoadConfig()
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
 
-	// // 1. Initialize abstract clients (Swap to NewGrpcAuthClient later)
-	// authClient := proxy.NewMockAuthClient()
+	if cfg.Tracing.Enabled {
+		shutdown, err := tracing.InitTracer(context.Background(), "api-gateway", cfg.Tracing.CollectorURL)
+		if err != nil {
+			log.Printf("[warn] failed to init tracing: %v (continuing without tracing)", err)
+		} else {
+			defer shutdown(context.Background())
+		}
+	}
 
-	// // 2. Initialize router and inject dependencies
-	// router := http.NewRouter(authClient)
-	// router.SetupRoutes()
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     cfg.Redis.Address,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		log.Fatalf("failed to connect to Redis: %v", err)
+	}
+	log.Println("[startup] Redis connected")
 
-	// // 3. Start server in a non-blocking goroutine
-	// go func() {
-	// 	log.Printf("Gateway starting on port %s", cfg.AppPort)
-	// 	if err := router.Listen(cfg.AppPort); err != nil {
-	// 		log.Fatalf("Gateway server failed: %v", err)
-	// 	}
-	// }()
+	authClient, err := proxy.NewAuthClient(cfg.Services.AuthAddr)
+	if err != nil {
+		log.Fatalf("failed to connect to auth-svc: %v", err)
+	}
+	defer authClient.Close()
+	log.Printf("[startup] auth-svc connected at %s", cfg.Services.AuthAddr)
 
-	// // 4. Mechanical sympathy: Graceful shutdown handling
-	// quit := make(chan os.Signal, 1)
-	// signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	// <-quit
-	
-	// log.Println("Gracefully shutting down Gateway...")
-	// if err := router.Shutdown(); err != nil {
-	// 	log.Fatalf("Gateway forced to shutdown: %v", err)
-	// }
-	// log.Println("Gateway stopped cleanly.")
+	hub := ws.NewHub(rdb)
+	hub.StartCleanupRoutine(5 * time.Minute)
+
+	serviceRegistry := proxy.NewServiceRegistry(cfg.Services.Downstream)
+
+	authMiddleware := middlewares.RequireAuth(authClient)
+	rateLimitMiddleware := middlewares.RateLimiter(
+		rdb,
+		cfg.RateLimiting.MaxRequests,
+		time.Duration(cfg.RateLimiting.WindowSeconds)*time.Second,
+	)
+
+	app := fiber.New(fiber.Config{
+		AppName:      "MoneyMate API Gateway",
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		ErrorHandler: http.GlobalErrorHandler,
+	})
+
+	app.Use(middlewares.RequestID)
+	app.Use(middlewares.Logger)
+	app.Use(rateLimitMiddleware)
+
+	http.RegisterRoutes(app, authMiddleware, authClient, serviceRegistry, hub)
+
+	go func() {
+		addr := ":" + cfg.Server.Port
+		log.Printf("[startup] gateway listening on %s", addr)
+		if err := app.Listen(addr); err != nil {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("[shutdown] gracefully shutting down...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_ = app.ShutdownWithContext(ctx)
+	log.Println("[shutdown] gateway stopped")
 }

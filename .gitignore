@@ -61,3 +61,9 @@ logs/
 
 # ── Test / coverage ──────────────────────────────────────────────
 coverage/
+
+# ── Misc ──────────────────────────────────────────────
+MoneyMate_Technical_Architecture_Documentation.pdf
+doc.md
+STEP2_GATEWAY_PLAN.md
+STEP2_TOPICS_TO_LEARN.md
