@@ -8,6 +8,7 @@ services:
       target: dev
     volumes:
       - ./:/moneymate-backend
+      - ./shared:/moneymate-backend/shared
     working_dir: /moneymate-backend/services/gateway
     env_file:
       - .env
@@ -37,6 +38,7 @@ services:
       target: dev
     volumes:
       - ./:/moneymate-backend
+      - ./shared:/moneymate-backend/shared
     working_dir: /moneymate-backend/services/auth
     env_file:
       - .env
