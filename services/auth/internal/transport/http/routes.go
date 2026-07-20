@@ -20,4 +20,10 @@ func RegisterRoutes(router fiber.Router, h *AuthHandler, authMiddleware fiber.Ha
 	merchantAuth.Post("/logout", authMiddleware, h.Logout)
 	merchantAuth.Post("/otp/send", h.SendRegistrationOTP)
 	merchantAuth.Post("/otp/verify", h.VerifyRegistrationOTP)
+
+	// Internal endpoints — called by gateway, not exposed to clients
+    internal := router.Group("/internal")
+    internal.Post("/auth/verify-access-token", h.VerifyAccessToken)
+    internal.Post("/auth/verify-transaction-token", h.VerifyTransactionToken)
+    internal.Get("/auth/users/:id", h.GetUserByID)
 }

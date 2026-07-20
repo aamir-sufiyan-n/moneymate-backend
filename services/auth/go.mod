@@ -10,8 +10,9 @@ require (
 	github.com/moneymate-2026/moneymate-backend/shared v0.0.0-20260717064650-68d03e2fa61f
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/spf13/viper v1.21.0
-	google.golang.org/grpc v1.82.1
 )
+
+require github.com/google/go-cmp v0.7.0 // indirect
 
 require (
 	github.com/alexedwards/argon2id v1.0.0 // indirect
@@ -54,6 +55,4 @@ require (
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 )
