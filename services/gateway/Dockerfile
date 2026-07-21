@@ -1,7 +1,9 @@
-FROM golang:1.22-alpine AS base
+FROM golang:1.26-alpine AS base
 WORKDIR /moneymate
 
 RUN apk add --no-cache git
+
+ENV GONOSUMCHECK=* GONOSUMDB=*
 
 COPY go.work go.work.sum ./
 COPY shared/go.mod shared/go.mod

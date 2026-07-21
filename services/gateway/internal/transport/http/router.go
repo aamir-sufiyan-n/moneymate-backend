@@ -16,6 +16,7 @@ func RegisterRoutes(
 	authClient proxy.AuthClient,
 	registry *proxy.ServiceRegistry,
 	hub *ws.Hub,
+	authAddr string,
 ) {
 	api := app.Group("/api/v1")
 
@@ -26,17 +27,17 @@ func RegisterRoutes(
 		})
 	})
 
-	authGroup := api.Group("/auth")
-	authGroup.Post("/login", func(c fiber.Ctx) error {
-		return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{
-			"error": "login pending gRPC contract",
-		})
-	})
-	authGroup.Post("/register", func(c fiber.Ctx) error {
-		return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{
-			"error": "register pending gRPC contract",
-		})
-	})
+	userAuth := api.Group("/auth")
+	userAuth.Post("/register", proxy.AuthProxy(authAddr, "/user/auth/register"))
+	userAuth.Post("/login", proxy.AuthProxy(authAddr, "/user/auth/login"))
+	userAuth.Post("/otp/send", proxy.AuthProxy(authAddr, "/user/auth/otp/send"))
+	userAuth.Post("/otp/verify", proxy.AuthProxy(authAddr, "/user/auth/otp/verify"))
+
+	merchantAuth := api.Group("/merchant/auth")
+	merchantAuth.Post("/register", proxy.AuthProxy(authAddr, "/merchant/auth/register"))
+	merchantAuth.Post("/login", proxy.AuthProxy(authAddr, "/merchant/auth/login"))
+	merchantAuth.Post("/otp/send", proxy.AuthProxy(authAddr, "/merchant/auth/otp/send"))
+	merchantAuth.Post("/otp/verify", proxy.AuthProxy(authAddr, "/merchant/auth/otp/verify"))
 
 	secure := api.Group("/secure")
 	secure.Use(authMiddleware)

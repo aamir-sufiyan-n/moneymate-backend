@@ -74,7 +74,7 @@ func main() {
 	app.Use(middlewares.Logger)
 	app.Use(rateLimitMiddleware)
 
-	http.RegisterRoutes(app, authMiddleware, authClient, serviceRegistry, hub)
+	http.RegisterRoutes(app, authMiddleware, authClient, serviceRegistry, hub, cfg.Services.AuthAddr)
 
 	go func() {
 		addr := ":" + cfg.Server.Port

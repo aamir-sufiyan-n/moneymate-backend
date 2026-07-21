@@ -3,7 +3,7 @@ server:
   environment: "development"
 
 services:
-  auth_addr: "localhost:9091"
+  auth_addr: "localhost:8081"
   downstream:
     payment: "localhost:9092"
     merchant: "localhost:9093"

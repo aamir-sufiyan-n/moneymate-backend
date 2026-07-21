@@ -1,9 +1,11 @@
 # ── Stage 1: base ───────────────────────────────────────────────
-FROM golang:1.22-alpine AS base
+FROM golang:1.26-alpine AS base
 WORKDIR /moneymate
 
 # install dependencies
 RUN apk add --no-cache git
+
+ENV GONOSUMCHECK=* GONOSUMDB=*
 
 # copy go workspace files first for layer caching
 COPY go.work go.work.sum ./
@@ -48,6 +50,6 @@ USER appuser
 
 COPY --from=builder /bin/auth /bin/auth
 
-EXPOSE 8081 9091
+EXPOSE 8081
 
 CMD ["/bin/auth"]

@@ -7,6 +7,7 @@ import (
 
 	"github.com/moneymate-2026/moneymate-backend/auth/internal/domain"
 	usecase "github.com/moneymate-2026/moneymate-backend/auth/internal/usecases"
+	jwtutil "github.com/moneymate-2026/moneymate-backend/shared/pkg/jwt"
 	response "github.com/moneymate-2026/moneymate-backend/shared/pkg/responses"
 )
 
@@ -15,12 +16,16 @@ var validate = validator.New()
 type AuthHandler struct {
 	authUsecase usecase.AuthUsecase
 	otpUsecase  usecase.OTPUsecase
+	userRepo    domain.UserRepository
+    jwtSecret   string
 }
 
-func NewAuthHandler(authUsecase usecase.AuthUsecase, otpUsecase usecase.OTPUsecase) *AuthHandler {
+func NewAuthHandler(authUsecase usecase.AuthUsecase, otpUsecase usecase.OTPUsecase, userRepo domain.UserRepository, jwtSecret string) *AuthHandler {
 	return &AuthHandler{
 		authUsecase: authUsecase,
 		otpUsecase:  otpUsecase,
+		userRepo: userRepo,
+		jwtSecret: jwtSecret,
 	}
 }
 
@@ -142,4 +147,89 @@ func (h *AuthHandler) VerifyRegistrationOTP(c fiber.Ctx) error {
 		return handleError(c, err)
 	}
 	return response.OK(c, "email verified", resp)
+}
+
+func (h *AuthHandler) VerifyAccessToken(c fiber.Ctx) error {
+    var req struct {
+        Token string `json:"token"`
+    }
+    if err := c.Bind().Body(&req); err != nil || req.Token == "" {
+        return response.BadRequest(c, nil, "token is required")
+    }
+
+    claims, err := jwtutil.ParseAccessToken(req.Token, h.jwtSecret)
+    if err != nil {
+        return response.Unauthorized(c, "invalid or expired token")
+    }
+
+    // Determine role from claims — first role in the list, default "user"
+    role := "user"
+    if len(claims.Roles) > 0 {
+        role = claims.Roles[0]
+    }
+
+    // JWT doesn't carry email — look it up from the database
+    userID, err := uuid.Parse(claims.UserID)
+    if err != nil {
+        return response.Unauthorized(c, "invalid user ID in token")
+    }
+    user, err := h.userRepo.GetByID(c.Context(), userID)
+    if err != nil {
+        return response.Unauthorized(c, "user not found")
+    }
+
+    return response.OK(c, "token verified", fiber.Map{
+        "valid":       true,
+        "user_id":     claims.UserID,
+        "email":       user.Email,
+        "role":        role,
+        "merchant_id": "",
+        "expires_at":  claims.ExpiresAt.Unix(),
+    })
+}
+
+func (h *AuthHandler) VerifyTransactionToken(c fiber.Ctx) error {
+    var req struct {
+        Token         string `json:"token"`
+        TransactionID string `json:"transaction_id"`
+    }
+    if err := c.Bind().Body(&req); err != nil || req.Token == "" {
+        return response.BadRequest(c, nil, "token and transaction_id are required")
+    }
+
+    claims, err := jwtutil.ParseTransactionToken(req.Token, h.jwtSecret)
+    if err != nil {
+        return response.Unauthorized(c, "invalid or expired transaction token")
+    }
+
+    return response.OK(c, "transaction token verified", fiber.Map{
+        "valid":          true,
+        "user_id":        claims.UserID,
+        "transaction_id": req.TransactionID,
+    })
+}
+
+func (h *AuthHandler) GetUserByID(c fiber.Ctx) error {
+    idStr := c.Params("id")
+    if idStr == "" {
+        return response.BadRequest(c, nil, "user ID is required")
+    }
+
+    id, err := uuid.Parse(idStr)
+    if err != nil {
+        return response.BadRequest(c, nil, "invalid user ID format")
+    }
+
+    user, err := h.userRepo.GetByID(c.Context(), id)
+    if err != nil {
+        return response.NotFound(c, "user not found")
+    }
+
+    return response.OK(c, "user found", fiber.Map{
+        "user_id":   user.ID.String(),
+        "email":     user.Email,
+        "full_name": user.FullName,
+        "handle":    user.Handle,
+        "role":      "user", // default - role resolution happens via jwt claims
+    })
 }
