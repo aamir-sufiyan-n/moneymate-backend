@@ -36,7 +36,7 @@ func safeString(s *string) string {
 func (r *StoreRepo) RegisterStore(ctx context.Context, store *domain.Store) (*domain.Store, error) {
 	arg := generated.CreateStoreParams{
 		ID:                store.ID,
-		Role:              store.Role,
+		OwnerID:           store.OwnerID,
 		OwnerName:         store.OwnerName,
 		ContactEmail:      store.ContactEmail,
 		MobileNumber:      store.MobileNumber,
@@ -117,7 +117,7 @@ func (r *StoreRepo) GetStoreByEmail(ctx context.Context, email string) (*domain.
 
 	return &domain.Store{
 		ID:           row.ID,
-		Role:         row.Role,
+		OwnerID:      row.OwnerID,
 		DisplayID:    row.DisplayID,
 		VPA:          safeString(row.Vpa),
 		LegalName:    row.LegalName,
@@ -174,7 +174,7 @@ func (r *StoreRepo) GetStoreProfileByStoreID(ctx context.Context, storeID uuid.U
 	tax := row.TaxID
 	return &domain.Store{
 		ID:                row.ID,
-		Role:              row.Role,
+		OwnerID:           row.OwnerID,
 		OwnerName:         row.OwnerName,
 		ContactEmail:      row.ContactEmail,
 		MobileNumber:      row.MobileNumber,
@@ -228,7 +228,7 @@ func (r *StoreRepo) UpdateStoreProfileByStoreID(ctx context.Context, store *doma
 	resTax := row.TaxID
 	return &domain.Store{
 		ID:                row.ID,
-		Role:              row.Role,
+		OwnerID:           row.OwnerID,
 		OwnerName:         row.OwnerName,
 		ContactEmail:      row.ContactEmail,
 		MobileNumber:      row.MobileNumber,

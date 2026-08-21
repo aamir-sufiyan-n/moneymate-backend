@@ -68,7 +68,7 @@ func (uc *StoreUseCase) ProcessRegistration(ctx context.Context, in RegisterStor
 
 	store := &domain.Store{
 		ID:                storeID,
-		Role:              "merchant",
+		OwnerID:           storeID,
 		OwnerName:         strings.TrimSpace(in.OwnerName),
 		ContactEmail:      strings.ToLower(strings.TrimSpace(in.ContactEmail)),
 		MobileNumber:      strings.TrimSpace(in.MobileNumber),
