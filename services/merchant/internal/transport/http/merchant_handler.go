@@ -51,7 +51,7 @@ func (h *MerchantHandler) RegisterStore(c fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	token, err := middleware.GenerateToken(store.ID.String(), store.Role)
+	token, err := middleware.GenerateToken(store.ID.String(), "merchant")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
 	}
@@ -82,7 +82,7 @@ func (h *MerchantHandler) LoginStore(c fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	token, err := middleware.GenerateToken(store.ID.String(), store.Role)
+	token, err := middleware.GenerateToken(store.ID.String(), "merchant")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
 	}
