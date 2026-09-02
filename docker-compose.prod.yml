@@ -136,12 +136,13 @@ services:
     env_file:
       - .env
     environment:
-      - CONFIG_PATH=/app/config/config.yaml
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=${SUPPORT_DB_USER}
-      - POSTGRES_PASSWORD=${SUPPORT_DB_PASSWORD}
-      - ENVIRONMENT=${ENVIRONMENT}
+    - CONFIG_PATH=/app/config/config.yaml
+    - POSTGRES_HOST=${POSTGRES_HOST}
+    - POSTGRES_PORT=5432
+    - POSTGRES_USER=${SUPPORT_DB_USER}
+    - POSTGRES_PASSWORD=${SUPPORT_DB_PASSWORD}
+    - REDIS_ADDR=redis:6379
+    - ENVIRONMENT=${ENVIRONMENT}
     expose:
       - "8085"
     ports:
