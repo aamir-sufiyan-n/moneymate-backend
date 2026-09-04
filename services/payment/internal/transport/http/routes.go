@@ -13,8 +13,10 @@ func RegisterRoutes(router fiber.Router, wh *WalletHandler, th *TransferHandler,
 
 	pay.Get("/wallets/me", RequireTransactionToken(authClient), wh.GetMyWallet)
 	pay.Get("/wallets/:id", wh.GetWalletByID)
+	
 
 	pay.Post("/transfers", RequireTransactionToken(authClient), th.Transfer)
+	pay.Get("/transactions/me", th.ListMyTransactions)
 	pay.Get("/transactions/:id", th.GetTransaction)
 	pay.Get("/resolve", th.ResolveHandle)
 

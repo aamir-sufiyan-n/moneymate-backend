@@ -110,6 +110,3 @@ type verifyPINRequest struct {
 
 // transaction pin (payment flow)
 
-
-
-

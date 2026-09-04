@@ -193,3 +193,10 @@ type UserRegisteredEvent struct {
 	UserID uuid.UUID `json:"user_id"`
 	Handle string    `json:"handle"`
 }
+
+type PhoneLookupResult struct {
+	Handle            string `json:"handle"`
+	Phone             string `json:"phone"`
+	FullName          string `json:"full_name"`
+	ProfilePictureURL string `json:"profile_picture_url,omitempty"`
+}

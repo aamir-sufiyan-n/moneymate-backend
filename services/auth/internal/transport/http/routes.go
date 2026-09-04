@@ -79,6 +79,9 @@ func registerUserRoutes(router fiber.Router, h *UserHandler) {
 	users.Put("/:id", h.UpdateUser)
 	users.Patch("/:id/status", h.UpdateUserStatus)
 	users.Delete("/:id", h.DeleteUser)
+
+	router.Get("/users/me", RequireUserID, h.GetMe)
+	router.Get("/users/lookup", RequireUserID, h.LookupByPhone)
 }
 
 func registerUserPinRoutes(router fiber.Router, h *UserPinHandler) {

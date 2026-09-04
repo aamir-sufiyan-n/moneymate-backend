@@ -27,6 +27,7 @@ type TransferUsecase interface {
 	Transfer(ctx context.Context, in TransferInput) (*domain.LedgerResult, error)
 	GetByID(ctx context.Context, id string) (*domain.Transaction, error)
 	ResolveHandle(ctx context.Context, handle string) (*ResolveResult, error)
+	ListMyTransactions(ctx context.Context, in ListTransactionsInput) (*ListTransactionsResult, error)
 }
 
 type AuthClient interface {
@@ -233,4 +234,40 @@ func (u *transferUsecase) ResolveHandle(ctx context.Context, handle string) (*Re
 	}
 
 	return res, nil
+}
+
+
+type ListTransactionsInput struct {
+	AuthenticatedUserID string
+	Page                int
+	PageSize            int
+}
+
+type ListTransactionsResult struct {
+	Transactions []*domain.Transaction
+	TotalCount   int64
+}
+
+func (u *transferUsecase) ListMyTransactions(ctx context.Context, in ListTransactionsInput) (*ListTransactionsResult, error) {
+	authUserID, err := uuid.Parse(in.AuthenticatedUserID)
+	if err != nil {
+		return nil, apperrors.ErrUnauthorized
+	}
+	acc, err := u.accounts.GetWalletByUserID(ctx, authUserID)
+	if err != nil {
+		return nil, err
+	}
+	if in.PageSize <= 0 || in.PageSize > 100 {
+		in.PageSize = 20
+	}
+	if in.Page <= 0 {
+		in.Page = 1
+	}
+	offset := (in.Page - 1) * in.PageSize
+
+	txs, total, err := u.transactions.ListByAccountPaginated(ctx, acc.ID, int32(in.PageSize), int32(offset))
+	if err != nil {
+		return nil, err
+	}
+	return &ListTransactionsResult{Transactions: txs, TotalCount: total}, nil
 }

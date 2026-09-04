@@ -20,6 +20,7 @@ type AdminUserUsecase interface {
 	UpdateUser(ctx context.Context, userID uuid.UUID, req UpdateUserRequest) (*UserDetail, error)
 	UpdateUserStatus(ctx context.Context, userID uuid.UUID, status string) error
 	DeleteUser(ctx context.Context, userID uuid.UUID) error
+	LookupByPhone(ctx context.Context, phone string) (*PhoneLookupResult, error)
 }
 
 type adminUserUsecase struct {
@@ -266,6 +267,31 @@ func (u *adminUserUsecase) DeleteUser(ctx context.Context, userID uuid.UUID) err
 		return fmt.Errorf("delete user: %w", err)
 	}
 	return nil
+}
+
+
+func (u *adminUserUsecase) LookupByPhone(ctx context.Context, phone string) (*PhoneLookupResult, error) {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return nil, apperrors.ErrInvalidInput
+	}
+
+	user, err := u.userRepo.GetByPhone(ctx, phone)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &PhoneLookupResult{
+		Handle:   user.Handle,
+		FullName: user.FullName,
+	}
+	if user.Phone != nil {
+		result.Phone = *user.Phone
+	}
+	if user.ProfilePictureURL != nil {
+		result.ProfilePictureURL = *user.ProfilePictureURL
+	}
+	return result, nil
 }
 
 // ── Helpers ──────────────────────────────────────────────────────

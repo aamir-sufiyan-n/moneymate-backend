@@ -14,6 +14,7 @@ import (
 type Querier interface {
 	AddBalance(ctx context.Context, arg AddBalanceParams) error
 	CountDeposits(ctx context.Context, arg CountDepositsParams) (int64, error)
+	CountTransactionsByAccount(ctx context.Context, fromAccountID uuid.UUID) (int64, error)
 	CountWithdrawals(ctx context.Context, arg CountWithdrawalsParams) (int64, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (CreateAccountRow, error)
 	CreateCategory(ctx context.Context, arg CreateCategoryParams) (PaymentCategory, error)
@@ -41,6 +42,7 @@ type Querier interface {
 	ListDeposits(ctx context.Context, arg ListDepositsParams) ([]PaymentDeposit, error)
 	ListEntriesByAccount(ctx context.Context, accountID uuid.UUID) ([]ListEntriesByAccountRow, error)
 	ListTransactionsByAccount(ctx context.Context, accountID uuid.UUID) ([]ListTransactionsByAccountRow, error)
+	ListTransactionsByAccountPaginated(ctx context.Context, arg ListTransactionsByAccountPaginatedParams) ([]PaymentTransaction, error)
 	ListWithdrawals(ctx context.Context, arg ListWithdrawalsParams) ([]PaymentTransaction, error)
 	MarkDepositFailed(ctx context.Context, arg MarkDepositFailedParams) error
 	MarkDepositPaid(ctx context.Context, arg MarkDepositPaidParams) error

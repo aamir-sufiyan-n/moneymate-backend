@@ -21,6 +21,11 @@ func registerAuthRoutes(api fiber.Router, authAddr string, authMiddleware fiber.
 	merchantAuth.Post("/login", proxy.AuthProxy(authAddr, "/auth/login"))
 	merchantAuth.Post("/logout", authMiddleware, proxy.AuthProxy(authAddr, "/auth/logout"))
 	merchantAuth.Post("/refresh", proxy.AuthProxy(authAddr, "/auth/refresh"))
+
+	users := api.Group("/users")
+	users.Use(authMiddleware)
+	users.Get("/me", proxy.AuthProxy(authAddr, "/users/me"))
+	users.Get("/lookup", proxy.AuthProxy(authAddr, "/users/lookup"))
 }
 
 func registerPinRoutes(api fiber.Router, authAddr string, authMiddleware fiber.Handler) {

@@ -16,6 +16,7 @@ func registerPaymentRoutes(api fiber.Router, authMiddleware fiber.Handler, regis
 
 	payment.Post("/transfers", proxy.HTTPProxy(registry, "payment", "/payment/transfers"))
 	payment.Get("/transactions/:id", proxy.HTTPProxy(registry, "payment", "/payment/transactions/:id"))
+	payment.Get("/transactions/me", proxy.HTTPProxy(registry, "payment", "/payment/transactions/me"))
 
 	payment.Post("/categories", proxy.HTTPProxy(registry, "payment", "/payment/categories"))
 	payment.Get("/categories", proxy.HTTPProxy(registry, "payment", "/payment/categories"))
