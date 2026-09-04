@@ -35,6 +35,17 @@ WHERE id = $1;
 
 
 
+-- name: ListTransactionsByAccountPaginated :many
+SELECT * FROM payment.transactions
+WHERE from_account_id = $1 OR to_account_id = $1
+ORDER BY created_at DESC
+LIMIT $2 OFFSET $3;
+
+-- name: CountTransactionsByAccount :one
+SELECT COUNT(*) FROM payment.transactions
+WHERE from_account_id = $1 OR to_account_id = $1;
+
+
 -- name: GetSpendByCategory :many
 SELECT
     COALESCE(c.name, 'Other') AS category_name,

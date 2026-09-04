@@ -1,6 +1,8 @@
 package http
 
 import (
+	"strconv"
+
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 
@@ -90,4 +92,37 @@ func toTransactionResponse(t *domain.Transaction) transactionResponse {
 		Description:    t.Description,
 		CreatedAt:      t.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
+}
+
+
+
+func (h *TransferHandler) ListMyTransactions(c fiber.Ctx) error {
+	userID := userIDFromLocals(c)
+	if userID == "" {
+		return response.Unauthorized(c, "authentication required")
+	}
+
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	pageSize, _ := strconv.Atoi(c.Query("page_size", "20"))
+
+	result, err := h.transfers.ListMyTransactions(c.Context(), usecases.ListTransactionsInput{
+		AuthenticatedUserID: userID,
+		Page:                page,
+		PageSize:            pageSize,
+	})
+	if err != nil {
+		return handleError(c, err)
+	}
+
+	txs := make([]transactionResponse, len(result.Transactions))
+	for i, t := range result.Transactions {
+		txs[i] = toTransactionResponse(t)
+	}
+
+	return response.OK(c, "transactions fetched", fiber.Map{
+		"transactions": txs,
+		"total_count":  result.TotalCount,
+		"page":         page,
+		"page_size":    pageSize,
+	})
 }

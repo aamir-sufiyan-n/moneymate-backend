@@ -52,6 +52,25 @@ func (r *TransactionRepo) GetByIdempotencyKey(ctx context.Context, key string, f
 	return rowToTransaction(generated.GetTransactionByIDRow(row)), nil
 }
 
+
+func (r *TransactionRepo) ListByAccountPaginated(ctx context.Context, accountID uuid.UUID, limit, offset int32) ([]*domain.Transaction, int64, error) {
+	rows, err := r.q.ListTransactionsByAccountPaginated(ctx, generated.ListTransactionsByAccountPaginatedParams{
+		FromAccountID: accountID, Limit: limit, Offset: offset,
+	})
+	if err != nil {
+		return nil, 0, mapDBErr(err)
+	}
+	total, err := r.q.CountTransactionsByAccount(ctx, accountID)
+	if err != nil {
+		return nil, 0, mapDBErr(err)
+	}
+	txs := make([]*domain.Transaction, len(rows))
+	for i, row := range rows {
+		txs[i] = paymentTxToTransaction(row)
+	}
+	return txs, total, nil
+}
+
 func (r *TransactionRepo) ListWithdrawals(ctx context.Context, settlementAccountID uuid.UUID, fromAccountID *uuid.UUID, limit, offset int32) ([]*domain.Transaction, int64, error) {
 	var fromParam pgtype.UUID
 	if fromAccountID != nil {

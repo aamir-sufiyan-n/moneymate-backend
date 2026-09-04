@@ -2,6 +2,7 @@ package http
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -148,4 +149,18 @@ func (h *UserHandler) GetMe(c fiber.Ctx) error {
 		return handleError(c, err)
 	}
 	return response.OK(c, "profile fetched", resp)
+}
+
+
+func (h *UserHandler) LookupByPhone(c fiber.Ctx) error {
+	phone := strings.TrimSpace(c.Query("phone"))
+	if phone == "" {
+		return response.BadRequest(c, nil, "phone is required")
+	}
+
+	result, err := h.adminUserUsecase.LookupByPhone(c.Context(), phone)
+	if err != nil {
+		return handleError(c, err)
+	}
+	return response.OK(c, "user found", result)
 }

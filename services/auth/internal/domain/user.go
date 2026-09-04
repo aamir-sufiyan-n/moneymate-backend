@@ -50,6 +50,7 @@ type ListUsersResult struct {
     TotalCount int64
 }
 
+
 type UserRepository interface {
     Create(ctx context.Context, user *User) error
     GetByID(ctx context.Context, id uuid.UUID) (*User, error)

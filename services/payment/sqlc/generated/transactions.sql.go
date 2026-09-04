@@ -13,6 +13,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countTransactionsByAccount = `-- name: CountTransactionsByAccount :one
+SELECT COUNT(*) FROM payment.transactions
+WHERE from_account_id = $1 OR to_account_id = $1
+`
+
+func (q *Queries) CountTransactionsByAccount(ctx context.Context, fromAccountID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countTransactionsByAccount, fromAccountID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const getSpendByCategory = `-- name: GetSpendByCategory :many
 SELECT
     COALESCE(c.name, 'Other') AS category_name,
@@ -252,6 +264,50 @@ func (q *Queries) ListTransactionsByAccount(ctx context.Context, accountID uuid.
 			&i.CategoryID,
 			&i.CreatedAt,
 			&i.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTransactionsByAccountPaginated = `-- name: ListTransactionsByAccountPaginated :many
+SELECT id, from_account_id, to_account_id, amount, status, idempotency_key, description, created_at, completed_at, category_id FROM payment.transactions
+WHERE from_account_id = $1 OR to_account_id = $1
+ORDER BY created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListTransactionsByAccountPaginatedParams struct {
+	FromAccountID uuid.UUID
+	Limit         int32
+	Offset        int32
+}
+
+func (q *Queries) ListTransactionsByAccountPaginated(ctx context.Context, arg ListTransactionsByAccountPaginatedParams) ([]PaymentTransaction, error) {
+	rows, err := q.db.Query(ctx, listTransactionsByAccountPaginated, arg.FromAccountID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PaymentTransaction{}
+	for rows.Next() {
+		var i PaymentTransaction
+		if err := rows.Scan(
+			&i.ID,
+			&i.FromAccountID,
+			&i.ToAccountID,
+			&i.Amount,
+			&i.Status,
+			&i.IdempotencyKey,
+			&i.Description,
+			&i.CreatedAt,
+			&i.CompletedAt,
+			&i.CategoryID,
 		); err != nil {
 			return nil, err
 		}
