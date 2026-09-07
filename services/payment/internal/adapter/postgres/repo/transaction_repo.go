@@ -144,6 +144,7 @@ func rowToTransaction(row generated.GetTransactionByIDRow) *domain.Transaction {
 		Status:         domain.TxStatus(row.Status),
 		IdempotencyKey: row.IdempotencyKey,
 		Description:    row.Description,
+		CategoryID:     pgtypeToUUIDPtr(row.CategoryID),
 		CreatedAt:      row.CreatedAt,
 		CompletedAt:    pgtypeToTimePtr(row.CompletedAt),
 	}
@@ -163,6 +164,7 @@ func paymentTxToTransaction(row generated.PaymentTransaction) *domain.Transactio
 		Status:         domain.TxStatus(row.Status), // PaymentTxStatus -> domain.TxStatus, both string-backed enums, safe cast
 		IdempotencyKey: row.IdempotencyKey,
 		Description:    desc,
+		CategoryID:     pgtypeToUUIDPtr(row.CategoryID),
 		CreatedAt:      row.CreatedAt,
 		CompletedAt:    pgtypeToTimePtr(row.CompletedAt),
 	}

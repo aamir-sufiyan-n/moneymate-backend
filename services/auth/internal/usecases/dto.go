@@ -195,8 +195,11 @@ type UserRegisteredEvent struct {
 }
 
 type PhoneLookupResult struct {
+	UserID            string `json:"user_id,omitempty"`
 	Handle            string `json:"handle"`
 	Phone             string `json:"phone"`
 	FullName          string `json:"full_name"`
+	Email             string `json:"email,omitempty"`
 	ProfilePictureURL string `json:"profile_picture_url,omitempty"`
+	QRCode            string `json:"qr_code,omitempty"`
 }

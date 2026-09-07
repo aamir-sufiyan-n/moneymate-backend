@@ -267,13 +267,24 @@ func (h *AuthHandler) GetUserByID(c fiber.Ctx) error {
 		return response.NotFound(c, "user not found")
 	}
 
+	phone := ""
+	if user.Phone != nil {
+		phone = *user.Phone
+	}
+
+	profilePic := ""
+	if user.ProfilePictureURL != nil {
+		profilePic = *user.ProfilePictureURL
+	}
+
 	return response.OK(c, "user found", fiber.Map{
-    "user_id":             user.ID.String(),
-    "email":               user.Email,
-    "full_name":           user.FullName,
-    "handle":              user.Handle,
-    "role":                "user",
-    "qr_code":             user.QRCode,
-    "profile_picture_url": user.ProfilePictureURL,
-})
+		"user_id":             user.ID.String(),
+		"email":               user.Email,
+		"full_name":           user.FullName,
+		"handle":              user.Handle,
+		"phone":               phone,
+		"role":                "user",
+		"qr_code":             user.QRCode,
+		"profile_picture_url": profilePic,
+	})
 }
