@@ -155,9 +155,6 @@ func (h *UserHandler) GetMe(c fiber.Ctx) error {
 func (h *UserHandler) LookupByPhone(c fiber.Ctx) error {
 	phone := strings.TrimSpace(c.Query("phone"))
 	if phone == "" {
-		phone = strings.TrimSpace(c.Params("phone"))
-	}
-	if phone == "" {
 		return response.BadRequest(c, nil, "phone is required")
 	}
 

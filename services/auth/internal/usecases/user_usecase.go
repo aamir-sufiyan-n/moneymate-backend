@@ -279,17 +279,45 @@ func (u *adminUserUsecase) LookupByPhone(ctx context.Context, phone string) (*Ph
 		phone = "+" + strings.TrimSpace(phone)
 	}
 
-	user, err := u.userRepo.GetByPhone(ctx, phone)
-	if err != nil {
-		if !strings.HasPrefix(phone, "+") {
-			if u2, err2 := u.userRepo.GetByPhone(ctx, "+"+phone); err2 == nil {
-				user = u2
-				err = nil
-			}
+	// Clean up formatting characters (spaces, dashes, parentheses)
+	var cleaned strings.Builder
+	for i, r := range phone {
+		if r == '+' && i == 0 {
+			cleaned.WriteRune(r)
+		} else if r >= '0' && r <= '9' {
+			cleaned.WriteRune(r)
 		}
-		if err != nil {
-			return nil, err
+	}
+	cleanPhone := cleaned.String()
+	if cleanPhone == "" || cleanPhone == "+" {
+		return nil, apperrors.ErrInvalidInput
+	}
+
+	// Candidate phone formats to try
+	candidates := []string{cleanPhone}
+	if strings.HasPrefix(cleanPhone, "+") {
+		noPlus := strings.TrimPrefix(cleanPhone, "+")
+		candidates = append(candidates, noPlus)
+		if strings.HasPrefix(cleanPhone, "+91") {
+			candidates = append(candidates, strings.TrimPrefix(cleanPhone, "+91"))
 		}
+	} else {
+		candidates = append(candidates, "+"+cleanPhone)
+		if len(cleanPhone) == 10 {
+			candidates = append(candidates, "+91"+cleanPhone)
+		}
+	}
+
+	var user *domain.User
+	var err error
+	for _, cand := range candidates {
+		user, err = u.userRepo.GetByPhone(ctx, cand)
+		if err == nil && user != nil {
+			break
+		}
+	}
+	if err != nil || user == nil {
+		return nil, apperrors.ErrUserNotFound
 	}
 
 	phoneVal := ""
