@@ -30,3 +30,11 @@ func pgtypeToTimePtr(t pgtype.Timestamptz) *time.Time {
 	}
 	return &t.Time
 }
+
+func pgtypeToUUIDPtr(u pgtype.UUID) *uuid.UUID {
+	if !u.Valid {
+		return nil
+	}
+	id := uuid.UUID(u.Bytes)
+	return &id
+}

@@ -82,6 +82,8 @@ func registerUserRoutes(router fiber.Router, h *UserHandler) {
 
 	router.Get("/users/me", RequireUserID, h.GetMe)
 	router.Get("/users/lookup", RequireUserID, h.LookupByPhone)
+	router.Get("/users/phone/:phone", RequireUserID, h.LookupByPhone)
+	router.Get("/users/by-phone", RequireUserID, h.LookupByPhone)
 }
 
 func registerUserPinRoutes(router fiber.Router, h *UserPinHandler) {

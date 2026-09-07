@@ -114,13 +114,8 @@ func (h *TransferHandler) ListMyTransactions(c fiber.Ctx) error {
 		return handleError(c, err)
 	}
 
-	txs := make([]transactionResponse, len(result.Transactions))
-	for i, t := range result.Transactions {
-		txs[i] = toTransactionResponse(t)
-	}
-
 	return response.OK(c, "transactions fetched", fiber.Map{
-		"transactions": txs,
+		"transactions": result.Transactions,
 		"total_count":  result.TotalCount,
 		"page":         page,
 		"page_size":    pageSize,

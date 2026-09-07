@@ -5,13 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
-	// authclient "github.com/moneymate-2026/moneymate-backend/services/payment/internal/adapter/authClient"
+	authclient "github.com/moneymate-2026/moneymate-backend/services/payment/internal/adapter/authClient"
 	// merchantclient "github.com/moneymate-2026/moneymate-backend/services/payment/internal/adapter/merchantClient"
 	"github.com/moneymate-2026/moneymate-backend/services/payment/internal/domain"
 	apperrors "github.com/moneymate-2026/moneymate-backend/shared/pkg/errors"
+	"github.com/moneymate-2026/moneymate-backend/shared/pkg/money"
 )
 
 type TransferInput struct {
@@ -31,7 +33,7 @@ type TransferUsecase interface {
 }
 
 type AuthClient interface {
-	GetUserProfile(ctx context.Context, userID string) (string, string, error)
+	GetUserProfile(ctx context.Context, userID string) (*authclient.UserProfile, error)
 }
 
 type MerchantClient interface {
@@ -217,10 +219,10 @@ func (u *transferUsecase) ResolveHandle(ctx context.Context, handle string) (*Re
 
 	if acc.Type == domain.AccountTypeWallet {
 		if u.authClient != nil && acc.UserID != nil {
-			name, photo, err := u.authClient.GetUserProfile(ctx, acc.UserID.String())
-			if err == nil {
-				res.DisplayName = name
-				res.PhotoURL = photo
+			profile, err := u.authClient.GetUserProfile(ctx, acc.UserID.String())
+			if err == nil && profile != nil {
+				res.DisplayName = profile.FullName
+				res.PhotoURL = profile.ProfilePictureURL
 			}
 		}
 	} else if acc.Type == domain.AccountTypeMerchantSettlement {
@@ -236,6 +238,23 @@ func (u *transferUsecase) ResolveHandle(ctx context.Context, handle string) (*Re
 	return res, nil
 }
 
+type TransactionDetail struct {
+	PaymentID          string `json:"payment_id"`
+	ID                 string `json:"id"`
+	FromUserID         string `json:"from_user_id"`
+	ToUserID           string `json:"to_user_id"`
+	FromAccountID      string `json:"from_account_id"`
+	ToAccountID        string `json:"to_account_id"`
+	FromUsername       string `json:"from_username"`
+	FromHandle         string `json:"from_handle"`
+	FromPhone          string `json:"from_phone"`
+	FromProfilePicture string `json:"from_profile_picture"`
+	PaymentAmount      string `json:"payment_amount"`
+	PaymentCategory    string `json:"payment_category"`
+	PaymentDescription string `json:"payment_description"`
+	Status             string `json:"status"`
+	CreatedAt          string `json:"created_at"`
+}
 
 type ListTransactionsInput struct {
 	AuthenticatedUserID string
@@ -244,7 +263,7 @@ type ListTransactionsInput struct {
 }
 
 type ListTransactionsResult struct {
-	Transactions []*domain.Transaction
+	Transactions []*TransactionDetail
 	TotalCount   int64
 }
 
@@ -269,5 +288,133 @@ func (u *transferUsecase) ListMyTransactions(ctx context.Context, in ListTransac
 	if err != nil {
 		return nil, err
 	}
-	return &ListTransactionsResult{Transactions: txs, TotalCount: total}, nil
+
+	accCache := make(map[uuid.UUID]*domain.Account)
+	userCache := make(map[string]*authclient.UserProfile)
+	merchantCache := make(map[string]struct{ name, logo string })
+	catCache := make(map[uuid.UUID]string)
+
+	getAccount := func(id uuid.UUID) *domain.Account {
+		if a, ok := accCache[id]; ok {
+			return a
+		}
+		a, err := u.accounts.GetByID(ctx, id)
+		if err == nil && a != nil {
+			accCache[id] = a
+			return a
+		}
+		return nil
+	}
+
+	getUserProfile := func(userID string) *authclient.UserProfile {
+		if p, ok := userCache[userID]; ok {
+			return p
+		}
+		if u.authClient == nil {
+			return nil
+		}
+		p, err := u.authClient.GetUserProfile(ctx, userID)
+		if err == nil && p != nil {
+			userCache[userID] = p
+			return p
+		}
+		return nil
+	}
+
+	getMerchantProfile := func(merchantID string) (string, string) {
+		if m, ok := merchantCache[merchantID]; ok {
+			return m.name, m.logo
+		}
+		if u.merchantClient == nil {
+			return "", ""
+		}
+		name, logo, err := u.merchantClient.GetStoreProfile(ctx, merchantID)
+		if err == nil {
+			merchantCache[merchantID] = struct{ name, logo string }{name: name, logo: logo}
+			return name, logo
+		}
+		return "", ""
+	}
+
+	getCategoryName := func(catID uuid.UUID) string {
+		if c, ok := catCache[catID]; ok {
+			return c
+		}
+		cat, err := u.categories.GetByID(ctx, catID)
+		if err == nil && cat != nil {
+			catCache[catID] = cat.Name
+			return cat.Name
+		}
+		return ""
+	}
+
+	details := make([]*TransactionDetail, len(txs))
+	for i, t := range txs {
+		fromAcc := getAccount(t.FromAccountID)
+		toAcc := getAccount(t.ToAccountID)
+
+		var fromUserID, toUserID string
+		var fromUsername, fromHandle, fromPhone, fromProfilePic string
+
+		if fromAcc != nil {
+			if fromAcc.UserID != nil {
+				fromUserID = fromAcc.UserID.String()
+				if profile := getUserProfile(fromUserID); profile != nil {
+					fromUsername = profile.FullName
+					fromHandle = profile.Handle
+					fromPhone = profile.Phone
+					fromProfilePic = profile.ProfilePictureURL
+				}
+				if fromHandle == "" && fromAcc.Handle != nil {
+					fromHandle = *fromAcc.Handle
+				}
+			} else if fromAcc.MerchantID != nil {
+				fromUserID = fromAcc.MerchantID.String()
+				name, logo := getMerchantProfile(fromUserID)
+				fromUsername = name
+				fromProfilePic = logo
+				if fromAcc.Handle != nil {
+					fromHandle = *fromAcc.Handle
+				}
+			} else if fromAcc.Type == domain.AccountTypeExternalSettlement {
+				fromUsername = "External Settlement"
+				fromHandle = "system"
+			} else {
+				fromUsername = string(fromAcc.Type)
+			}
+		}
+
+		if toAcc != nil {
+			if toAcc.UserID != nil {
+				toUserID = toAcc.UserID.String()
+			} else if toAcc.MerchantID != nil {
+				toUserID = toAcc.MerchantID.String()
+			}
+		}
+
+		categoryName := ""
+		if t.CategoryID != nil {
+			categoryName = getCategoryName(*t.CategoryID)
+		}
+
+		details[i] = &TransactionDetail{
+			PaymentID:          t.ID.String(),
+			ID:                 t.ID.String(),
+			FromUserID:         fromUserID,
+			ToUserID:           toUserID,
+			FromAccountID:      t.FromAccountID.String(),
+			ToAccountID:        t.ToAccountID.String(),
+			FromUsername:       fromUsername,
+			FromHandle:         fromHandle,
+			FromPhone:          fromPhone,
+			FromProfilePicture: fromProfilePic,
+			PaymentAmount:      money.FormatPaise(t.Amount),
+			PaymentCategory:    categoryName,
+			PaymentDescription: t.Description,
+			Status:             string(t.Status),
+			CreatedAt:          t.CreatedAt.Format(time.RFC3339),
+		}
+	}
+
+	return &ListTransactionsResult{Transactions: details, TotalCount: total}, nil
 }

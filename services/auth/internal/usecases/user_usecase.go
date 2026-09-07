@@ -275,21 +275,40 @@ func (u *adminUserUsecase) LookupByPhone(ctx context.Context, phone string) (*Ph
 	if phone == "" {
 		return nil, apperrors.ErrInvalidInput
 	}
+	if strings.HasPrefix(phone, " ") {
+		phone = "+" + strings.TrimSpace(phone)
+	}
 
 	user, err := u.userRepo.GetByPhone(ctx, phone)
 	if err != nil {
-		return nil, err
+		if !strings.HasPrefix(phone, "+") {
+			if u2, err2 := u.userRepo.GetByPhone(ctx, "+"+phone); err2 == nil {
+				user = u2
+				err = nil
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	phoneVal := ""
+	if user.Phone != nil {
+		phoneVal = *user.Phone
+	}
+	picVal := ""
+	if user.ProfilePictureURL != nil {
+		picVal = *user.ProfilePictureURL
 	}
 
 	result := &PhoneLookupResult{
-		Handle:   user.Handle,
-		FullName: user.FullName,
-	}
-	if user.Phone != nil {
-		result.Phone = *user.Phone
-	}
-	if user.ProfilePictureURL != nil {
-		result.ProfilePictureURL = *user.ProfilePictureURL
+		UserID:            user.ID.String(),
+		Handle:            user.Handle,
+		Phone:             phoneVal,
+		FullName:          user.FullName,
+		Email:             user.Email,
+		ProfilePictureURL: picVal,
+		QRCode:            user.QRCode,
 	}
 	return result, nil
 }
