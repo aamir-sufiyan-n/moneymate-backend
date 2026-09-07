@@ -26,8 +26,6 @@ func registerAuthRoutes(api fiber.Router, authAddr string, authMiddleware fiber.
 	users.Use(authMiddleware)
 	users.Get("/me", proxy.AuthProxy(authAddr, "/users/me"))
 	users.Get("/lookup", proxy.AuthProxy(authAddr, "/users/lookup"))
-	users.Get("/phone/:phone", proxy.AuthProxy(authAddr, "/users/phone/:phone"))
-	users.Get("/by-phone", proxy.AuthProxy(authAddr, "/users/by-phone"))
 }
 
 func registerPinRoutes(api fiber.Router, authAddr string, authMiddleware fiber.Handler) {

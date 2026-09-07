@@ -238,9 +238,34 @@ func (u *transferUsecase) ResolveHandle(ctx context.Context, handle string) (*Re
 	return res, nil
 }
 
+type ParticipantProfile struct {
+	UserID            string `json:"user_id"`
+	AccountID         string `json:"account_id"`
+	AccountType       string `json:"account_type"`
+	Username          string `json:"username"`
+	FullName          string `json:"full_name"`
+	Handle            string `json:"handle"`
+	Phone             string `json:"phone"`
+	ProfilePicture    string `json:"profile_picture"`
+	ProfilePictureURL string `json:"profile_picture_url"`
+}
+
 type TransactionDetail struct {
-	PaymentID          string `json:"payment_id"`
-	ID                 string `json:"id"`
+	PaymentID          string             `json:"payment_id"`
+	ID                 string             `json:"id"`
+	Amount             string             `json:"amount"`
+	PaymentAmount      string             `json:"payment_amount"`
+	Description        string             `json:"description"`
+	PaymentDescription string             `json:"payment_description"`
+	Category           string             `json:"category"`
+	PaymentCategory    string             `json:"payment_category"`
+	Status             string             `json:"status"`
+	Direction          string             `json:"direction"` // "debit" (sent) or "credit" (received)
+	CreatedAt          string             `json:"created_at"`
+	From               ParticipantProfile `json:"from"`
+	To                 ParticipantProfile `json:"to"`
+
+	// Flat fields for backwards compatibility:
 	FromUserID         string `json:"from_user_id"`
 	ToUserID           string `json:"to_user_id"`
 	FromAccountID      string `json:"from_account_id"`
@@ -249,11 +274,10 @@ type TransactionDetail struct {
 	FromHandle         string `json:"from_handle"`
 	FromPhone          string `json:"from_phone"`
 	FromProfilePicture string `json:"from_profile_picture"`
-	PaymentAmount      string `json:"payment_amount"`
-	PaymentCategory    string `json:"payment_category"`
-	PaymentDescription string `json:"payment_description"`
-	Status             string `json:"status"`
-	CreatedAt          string `json:"created_at"`
+	ToUsername         string `json:"to_username"`
+	ToHandle           string `json:"to_handle"`
+	ToPhone            string `json:"to_phone"`
+	ToProfilePicture   string `json:"to_profile_picture"`
 }
 
 type ListTransactionsInput struct {
@@ -348,48 +372,65 @@ func (u *transferUsecase) ListMyTransactions(ctx context.Context, in ListTransac
 		return ""
 	}
 
+	buildParticipantProfile := func(acc *domain.Account, defaultAccountID uuid.UUID) ParticipantProfile {
+		if acc == nil {
+			return ParticipantProfile{
+				AccountID: defaultAccountID.String(),
+			}
+		}
+
+		profile := ParticipantProfile{
+			AccountID:   acc.ID.String(),
+			AccountType: string(acc.Type),
+		}
+
+		if acc.UserID != nil {
+			profile.UserID = acc.UserID.String()
+			if uProf := getUserProfile(profile.UserID); uProf != nil {
+				profile.Username = uProf.FullName
+				profile.FullName = uProf.FullName
+				profile.Handle = uProf.Handle
+				profile.Phone = uProf.Phone
+				profile.ProfilePicture = uProf.ProfilePictureURL
+				profile.ProfilePictureURL = uProf.ProfilePictureURL
+			}
+			if profile.Handle == "" && acc.Handle != nil {
+				profile.Handle = *acc.Handle
+			}
+		} else if acc.MerchantID != nil {
+			profile.UserID = acc.MerchantID.String()
+			name, logo := getMerchantProfile(profile.UserID)
+			profile.Username = name
+			profile.FullName = name
+			profile.ProfilePicture = logo
+			profile.ProfilePictureURL = logo
+			if acc.Handle != nil {
+				profile.Handle = *acc.Handle
+			}
+		} else if acc.Type == domain.AccountTypeExternalSettlement {
+			profile.Username = "External Settlement"
+			profile.FullName = "External Settlement"
+			profile.Handle = "system"
+		} else {
+			profile.Username = string(acc.Type)
+			profile.FullName = string(acc.Type)
+			profile.Handle = "system"
+		}
+
+		return profile
+	}
+
 	details := make([]*TransactionDetail, len(txs))
 	for i, t := range txs {
 		fromAcc := getAccount(t.FromAccountID)
 		toAcc := getAccount(t.ToAccountID)
 
-		var fromUserID, toUserID string
-		var fromUsername, fromHandle, fromPhone, fromProfilePic string
+		fromProfile := buildParticipantProfile(fromAcc, t.FromAccountID)
+		toProfile := buildParticipantProfile(toAcc, t.ToAccountID)
 
-		if fromAcc != nil {
-			if fromAcc.UserID != nil {
-				fromUserID = fromAcc.UserID.String()
-				if profile := getUserProfile(fromUserID); profile != nil {
-					fromUsername = profile.FullName
-					fromHandle = profile.Handle
-					fromPhone = profile.Phone
-					fromProfilePic = profile.ProfilePictureURL
-				}
-				if fromHandle == "" && fromAcc.Handle != nil {
-					fromHandle = *fromAcc.Handle
-				}
-			} else if fromAcc.MerchantID != nil {
-				fromUserID = fromAcc.MerchantID.String()
-				name, logo := getMerchantProfile(fromUserID)
-				fromUsername = name
-				fromProfilePic = logo
-				if fromAcc.Handle != nil {
-					fromHandle = *fromAcc.Handle
-				}
-			} else if fromAcc.Type == domain.AccountTypeExternalSettlement {
-				fromUsername = "External Settlement"
-				fromHandle = "system"
-			} else {
-				fromUsername = string(fromAcc.Type)
-			}
-		}
-
-		if toAcc != nil {
-			if toAcc.UserID != nil {
-				toUserID = toAcc.UserID.String()
-			} else if toAcc.MerchantID != nil {
-				toUserID = toAcc.MerchantID.String()
-			}
+		direction := "credit"
+		if fromAcc != nil && fromAcc.ID == acc.ID {
+			direction = "debit"
 		}
 
 		categoryName := ""
@@ -397,22 +438,35 @@ func (u *transferUsecase) ListMyTransactions(ctx context.Context, in ListTransac
 			categoryName = getCategoryName(*t.CategoryID)
 		}
 
+		formattedAmount := money.FormatPaise(t.Amount)
+
 		details[i] = &TransactionDetail{
 			PaymentID:          t.ID.String(),
 			ID:                 t.ID.String(),
-			FromUserID:         fromUserID,
-			ToUserID:           toUserID,
-			FromAccountID:      t.FromAccountID.String(),
-			ToAccountID:        t.ToAccountID.String(),
-			FromUsername:       fromUsername,
-			FromHandle:         fromHandle,
-			FromPhone:          fromPhone,
-			FromProfilePicture: fromProfilePic,
-			PaymentAmount:      money.FormatPaise(t.Amount),
-			PaymentCategory:    categoryName,
+			Amount:             formattedAmount,
+			PaymentAmount:      formattedAmount,
+			Description:        t.Description,
 			PaymentDescription: t.Description,
+			Category:           categoryName,
+			PaymentCategory:    categoryName,
 			Status:             string(t.Status),
+			Direction:          direction,
 			CreatedAt:          t.CreatedAt.Format(time.RFC3339),
+			From:               fromProfile,
+			To:                 toProfile,
+
+			FromUserID:         fromProfile.UserID,
+			ToUserID:           toProfile.UserID,
+			FromAccountID:      fromProfile.AccountID,
+			ToAccountID:        toProfile.AccountID,
+			FromUsername:       fromProfile.Username,
+			FromHandle:         fromProfile.Handle,
+			FromPhone:          fromProfile.Phone,
+			FromProfilePicture: fromProfile.ProfilePicture,
+			ToUsername:         toProfile.Username,
+			ToHandle:           toProfile.Handle,
+			ToPhone:            toProfile.Phone,
+			ToProfilePicture:   toProfile.ProfilePicture,
 		}
 	}
 
