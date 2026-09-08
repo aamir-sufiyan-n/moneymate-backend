@@ -1,6 +1,8 @@
 package http
 
 import (
+	"log"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"github.com/abijith/moneymate-backend/services/support/internal/usecase"
@@ -29,6 +31,9 @@ func (h *ChatHandler) SendMessage(c fiber.Ctx) error {
 
 	senderIDStr := c.Get("X-User-ID")
 	senderType := c.Get("X-User-Role")
+	if senderType == "" {
+		senderType = "user"
+	}
 
 	senderID, err := uuid.Parse(senderIDStr)
 	if err != nil {
@@ -42,6 +47,7 @@ func (h *ChatHandler) SendMessage(c fiber.Ctx) error {
 
 	msg, err := h.useCase.SendMessage(c.Context(), senderID, senderType, receiverID, req.ReceiverType, req.Message)
 	if err != nil {
+		log.Printf("[Support] SendMessage failed: %v", err)
 		return response.InternalServerError(c)
 	}
 
@@ -63,6 +69,7 @@ func (h *ChatHandler) GetChatHistoryForAdmin(c fiber.Ctx) error {
 
 	history, err := h.useCase.GetChatHistory(c.Context(), adminID, userID)
 	if err != nil {
+		log.Printf("[Support] GetChatHistoryForAdmin failed: %v", err)
 		return response.InternalServerError(c)
 	}
 
@@ -78,6 +85,7 @@ func (h *ChatHandler) GetAdminChatHistory(c fiber.Ctx) error {
 
 	history, err := h.useCase.GetAdminChatHistory(c.Context(), adminID)
 	if err != nil {
+		log.Printf("[Support] GetAdminChatHistory failed: %v", err)
 		return response.InternalServerError(c)
 	}
 
@@ -98,6 +106,7 @@ func (h *ChatHandler) MarkMessagesAsRead(c fiber.Ctx) error {
 	}
 
 	if err := h.useCase.MarkMessagesAsRead(c.Context(), senderID, receiverID); err != nil {
+		log.Printf("[Support] MarkMessagesAsRead failed: %v", err)
 		return response.InternalServerError(c)
 	}
 

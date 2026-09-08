@@ -1,4 +1,6 @@
-CREATE TABLE feedbacks (
+CREATE SCHEMA IF NOT EXISTS support;
+
+CREATE TABLE IF NOT EXISTS feedbacks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,
     user_type VARCHAR(20) NOT NULL, -- 'user' or 'merchant'

@@ -96,6 +96,9 @@ func HTTPProxy(registry *ServiceRegistry, serviceName string, targetPath string)
 		if uid, ok := c.Locals("user_id").(string); ok && uid != "" {
 			req.Header.Set("X-User-Id", uid)
 		}
+		if role, ok := c.Locals("role").(string); ok && role != "" {
+			req.Header.Set("X-User-Role", role)
+		}
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
