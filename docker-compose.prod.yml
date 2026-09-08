@@ -143,10 +143,13 @@ services:
     - POSTGRES_PASSWORD=${SUPPORT_DB_PASSWORD}
     - REDIS_ADDR=redis:6379
     - ENVIRONMENT=${ENVIRONMENT}
+    - MIGRATIONS_PATH=/app/migrations
     expose:
       - "8085"
     ports:
       - "8085:8085"
+    depends_on:
+      - redis
     restart: unless-stopped
     networks:
       - moneymate-network
