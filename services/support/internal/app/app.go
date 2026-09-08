@@ -49,6 +49,19 @@ func Build(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("ping db: %w", err)
 	}
 
+	migrationDSN := fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s&search_path=support",
+		cfg.Database.User,
+		cfg.Database.Password,
+		cfg.Database.Host,
+		cfg.Database.Port,
+		cfg.Database.Name,
+		cfg.Database.SslMode,
+	)
+	if err := postgres.RunMigrations(migrationDSN, cfg.Database.MigrationsPath); err != nil {
+		return nil, fmt.Errorf("run migrations: %w", err)
+	}
+
 	supportRepo := postgres.NewSupportRepo(db)
 	supportUseCase := usecase.NewSupportUseCase(supportRepo)
 
