@@ -50,6 +50,9 @@ func MerchantProxy(merchantAddr, targetPath string) fiber.Handler {
 		if uid, ok := c.Locals("user_id").(string); ok && uid != "" {
 			req.Header.Set("X-User-Id", uid)
 		}
+		if role, ok := c.Locals("role").(string); ok && role != "" {
+			req.Header.Set("X-User-Role", role)
+		}
 
 		resp, err := merchantHTTPClient.Do(req)
 		if err != nil {

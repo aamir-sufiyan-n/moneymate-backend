@@ -1,6 +1,7 @@
 package http
 
 import (
+	"log"
 	"strconv"
 
 	"github.com/gofiber/fiber/v3"
@@ -30,6 +31,9 @@ func (h *SupportHandler) CreateFeedback(c fiber.Ctx) error {
 
 	uidStr := c.Get("X-User-ID")
 	userType := c.Get("X-User-Role")
+	if userType == "" {
+		userType = "user"
+	}
 
 	uid, err := uuid.Parse(uidStr)
 	if err != nil {
@@ -38,6 +42,7 @@ func (h *SupportHandler) CreateFeedback(c fiber.Ctx) error {
 
 	fb, err := h.uc.CreateFeedback(c.Context(), uid, userType, req.Rating, req.Description)
 	if err != nil {
+		log.Printf("[Support] CreateFeedback failed: %v", err)
 		return response.InternalServerError(c)
 	}
 
@@ -50,6 +55,7 @@ func (h *SupportHandler) ListFeedbacks(c fiber.Ctx) error {
 
 	fbs, err := h.uc.ListFeedbacks(c.Context(), int32(limit), int32(offset))
 	if err != nil {
+		log.Printf("[Support] ListFeedbacks failed: %v", err)
 		return response.InternalServerError(c)
 	}
 
@@ -69,6 +75,9 @@ func (h *SupportHandler) CreateComplaint(c fiber.Ctx) error {
 
 	uidStr := c.Get("X-User-ID")
 	userType := c.Get("X-User-Role")
+	if userType == "" {
+		userType = "user"
+	}
 
 	uid, err := uuid.Parse(uidStr)
 	if err != nil {
@@ -77,6 +86,7 @@ func (h *SupportHandler) CreateComplaint(c fiber.Ctx) error {
 
 	comp, err := h.uc.CreateComplaint(c.Context(), uid, userType, req.Title, req.Description)
 	if err != nil {
+		log.Printf("[Support] CreateComplaint failed: %v", err)
 		return response.InternalServerError(c)
 	}
 
@@ -89,6 +99,7 @@ func (h *SupportHandler) ListComplaints(c fiber.Ctx) error {
 
 	comps, err := h.uc.ListComplaints(c.Context(), int32(limit), int32(offset))
 	if err != nil {
+		log.Printf("[Support] ListComplaints failed: %v", err)
 		return response.InternalServerError(c)
 	}
 
@@ -98,6 +109,9 @@ func (h *SupportHandler) ListComplaints(c fiber.Ctx) error {
 func (h *SupportHandler) ListComplaintsByUser(c fiber.Ctx) error {
 	userID := c.Get("X-User-ID")
 	userType := c.Get("X-User-Role")
+	if userType == "" {
+		userType = "user"
+	}
 
 	uid, err := uuid.Parse(userID)
 	if err != nil {
@@ -106,18 +120,17 @@ func (h *SupportHandler) ListComplaintsByUser(c fiber.Ctx) error {
 
 	comps, err := h.uc.ListComplaintsByUser(c.Context(), uid, userType)
 	if err != nil {
+		log.Printf("[Support] ListComplaintsByUser failed: %v", err)
 		return response.InternalServerError(c)
 	}
 
 	return response.OK(c, "Complaints fetched successfully", comps)
 }
 
-
-
 type createReportReq struct {
-	ReportedVPA  string `json:"reported_vpa"`
-	Title        string `json:"title"`
-	Description  string `json:"description"`
+	ReportedVPA string `json:"reported_vpa"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
 }
 
 func (h *SupportHandler) CreateReport(c fiber.Ctx) error {
@@ -128,6 +141,9 @@ func (h *SupportHandler) CreateReport(c fiber.Ctx) error {
 
 	uidStr := c.Get("X-User-ID")
 	userType := c.Get("X-User-Role")
+	if userType == "" {
+		userType = "user"
+	}
 
 	uid, err := uuid.Parse(uidStr)
 	if err != nil {
@@ -136,6 +152,7 @@ func (h *SupportHandler) CreateReport(c fiber.Ctx) error {
 
 	rep, err := h.uc.CreateReport(c.Context(), uid, userType, req.ReportedVPA, req.Title, req.Description)
 	if err != nil {
+		log.Printf("[Support] CreateReport failed: %v", err)
 		return response.InternalServerError(c)
 	}
 
@@ -148,6 +165,7 @@ func (h *SupportHandler) ListReports(c fiber.Ctx) error {
 
 	reps, err := h.uc.ListReports(c.Context(), int32(limit), int32(offset))
 	if err != nil {
+		log.Printf("[Support] ListReports failed: %v", err)
 		return response.InternalServerError(c)
 	}
 
@@ -157,6 +175,9 @@ func (h *SupportHandler) ListReports(c fiber.Ctx) error {
 func (h *SupportHandler) ListReportsByUser(c fiber.Ctx) error {
 	reporterID := c.Get("X-User-ID")
 	reporterType := c.Get("X-User-Role")
+	if reporterType == "" {
+		reporterType = "user"
+	}
 
 	uid, err := uuid.Parse(reporterID)
 	if err != nil {
@@ -165,12 +186,12 @@ func (h *SupportHandler) ListReportsByUser(c fiber.Ctx) error {
 
 	reps, err := h.uc.ListReportsByUser(c.Context(), uid, reporterType)
 	if err != nil {
+		log.Printf("[Support] ListReportsByUser failed: %v", err)
 		return response.InternalServerError(c)
 	}
 
 	return response.OK(c, "Reports fetched successfully", reps)
 }
-
 
 type createAuditLogReq struct {
 	AdminName string `json:"admin_name"`
@@ -186,18 +207,22 @@ func (h *SupportHandler) CreateAuditLog(c fiber.Ctx) error {
 
 	uidStr := c.Get("X-User-ID")
 	userRole := c.Get("X-User-Role")
+	if userRole == "" {
+		userRole = "admin"
+	}
 
 	uid, err := uuid.Parse(uidStr)
 	if err != nil {
 		return response.BadRequest(c, nil, "invalid admin_id from token")
 	}
 
-	log, err := h.uc.CreateAuditLog(c.Context(), uid, req.AdminName, userRole, req.Module, req.Action)
+	logEntry, err := h.uc.CreateAuditLog(c.Context(), uid, req.AdminName, userRole, req.Module, req.Action)
 	if err != nil {
+		log.Printf("[Support] CreateAuditLog failed: %v", err)
 		return response.InternalServerError(c)
 	}
 
-	return response.Created(c, "Audit log created successfully", log)
+	return response.Created(c, "Audit log created successfully", logEntry)
 }
 
 func (h *SupportHandler) ListAuditLogs(c fiber.Ctx) error {
@@ -206,6 +231,7 @@ func (h *SupportHandler) ListAuditLogs(c fiber.Ctx) error {
 
 	logs, err := h.uc.ListAuditLogs(c.Context(), int32(limit), int32(offset))
 	if err != nil {
+		log.Printf("[Support] ListAuditLogs failed: %v", err)
 		return response.InternalServerError(c)
 	}
 
