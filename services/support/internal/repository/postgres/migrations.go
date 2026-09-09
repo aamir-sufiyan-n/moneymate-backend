@@ -1,18 +1,25 @@
-
 package postgres
 
 import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
-
 func RunMigrations(dsn string, migrationsPath string) error {
 	log.Println("Running database migrations...")
+
+	if migrationsPath == "" {
+		migrationsPath = "./migrations"
+	}
+	if _, err := os.Stat(migrationsPath); os.IsNotExist(err) {
+		log.Printf("Migrations path %s not found, using fallback ./migrations", migrationsPath)
+		migrationsPath = "./migrations"
+	}
 
 	m, err := migrate.New(
 		fmt.Sprintf("file://%s", migrationsPath),
