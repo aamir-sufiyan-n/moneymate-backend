@@ -1,2 +1,9 @@
 server:
   http_addr: ":8085"
+
+database:
+  max_open_conns: 25
+  min_open_conns: 5
+  max_conn_lifetime: 15m
+  max_idle_time: 5m
+  migrations_path: "/app/migrations"
