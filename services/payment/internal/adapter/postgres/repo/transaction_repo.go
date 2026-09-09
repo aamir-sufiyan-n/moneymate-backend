@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -133,6 +134,47 @@ func (r *TransactionRepo) GetEntriesByTransactionID(ctx context.Context, txID uu
 		})
 	}
 	return entries, nil
+}
+
+func (r *TransactionRepo) GetSpendByCategory(ctx context.Context, accountID uuid.UUID, from, to time.Time) ([]domain.SpendByCategory, error) {
+	rows, err := r.q.GetSpendByCategory(ctx, generated.GetSpendByCategoryParams{
+		FromAccountID: accountID,
+		CreatedAt:     from,
+		CreatedAt_2:   to,
+	})
+	if err != nil {
+		return nil, mapDBErr(err)
+	}
+	res := make([]domain.SpendByCategory, len(rows))
+	for i, row := range rows {
+		res[i] = domain.SpendByCategory{
+			Category:         row.Category,
+			TransactionCount: row.TransactionCount,
+			TotalAmount:      row.TotalAmount,
+		}
+	}
+	return res, nil
+}
+
+func (r *TransactionRepo) GetSpendByPeriod(ctx context.Context, accountID uuid.UUID, from, to time.Time, granularity string) ([]domain.SpendByPeriod, error) {
+	rows, err := r.q.GetSpendByPeriod(ctx, generated.GetSpendByPeriodParams{
+		FromAccountID: accountID,
+		CreatedAt:     from,
+		CreatedAt_2:   to,
+		Column4:       granularity,
+	})
+	if err != nil {
+		return nil, mapDBErr(err)
+	}
+	res := make([]domain.SpendByPeriod, len(rows))
+	for i, row := range rows {
+		res[i] = domain.SpendByPeriod{
+			Period:           row.Period,
+			TotalAmount:      row.TotalAmount,
+			TransactionCount: row.TransactionCount,
+		}
+	}
+	return res, nil
 }
 
 func rowToTransaction(row generated.GetTransactionByIDRow) *domain.Transaction {

@@ -47,16 +47,28 @@ WHERE from_account_id = $1 OR to_account_id = $1;
 
 
 -- name: GetSpendByCategory :many
-SELECT
-    COALESCE(c.name, 'Other') AS category_name,
-    t.category_id,
+SELECT 
+    COALESCE(c.name, 'uncategorized')::text AS category,
     COUNT(*)::bigint AS transaction_count,
-    SUM(t.amount)::bigint AS total_amount
+    COALESCE(SUM(t.amount), 0)::bigint AS total_amount
 FROM payment.transactions t
-LEFT JOIN payment.categories c ON c.id = t.category_id
+LEFT JOIN payment.categories c ON t.category_id = c.id
 WHERE t.from_account_id = $1
-    AND t.status = 'completed'
-    AND t.created_at >= $2
-    AND t.created_at < $3
-GROUP BY c.name, t.category_id
+  AND t.status = 'completed'
+  AND t.created_at >= $2
+  AND t.created_at < $3
+GROUP BY c.name
 ORDER BY total_amount DESC;
+
+-- name: GetSpendByPeriod :many
+SELECT 
+    DATE_TRUNC($4::text, t.created_at)::timestamptz AS period,
+    COALESCE(SUM(t.amount), 0)::bigint AS total_amount,
+    COUNT(*)::bigint AS transaction_count
+FROM payment.transactions t
+WHERE t.from_account_id = $1
+  AND t.status = 'completed'
+  AND t.created_at >= $2
+  AND t.created_at < $3
+GROUP BY DATE_TRUNC($4::text, t.created_at)
+ORDER BY period ASC;
