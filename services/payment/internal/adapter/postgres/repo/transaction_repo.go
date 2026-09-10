@@ -146,11 +146,11 @@ func (r *TransactionRepo) GetEntriesByTransactionID(ctx context.Context, txID uu
 	return entries, nil
 }
 
-func (r *TransactionRepo) GetSpendByCategory(ctx context.Context, accountID uuid.UUID, from, to time.Time) ([]domain.SpendByCategory, error) {
+func (r *TransactionRepo) GetSpendByCategory(ctx context.Context, accountID uuid.UUID, from *time.Time, to time.Time) ([]domain.SpendByCategory, error) {
 	rows, err := r.q.GetSpendByCategory(ctx, generated.GetSpendByCategoryParams{
 		FromAccountID: accountID,
-		CreatedAt:     from,
-		CreatedAt_2:   to,
+		CreatedAtFrom: timePtrToPgtype(from),
+		CreatedAtTo:   to,
 	})
 	if err != nil {
 		return nil, mapDBErr(err)
@@ -166,12 +166,12 @@ func (r *TransactionRepo) GetSpendByCategory(ctx context.Context, accountID uuid
 	return res, nil
 }
 
-func (r *TransactionRepo) GetSpendByPeriod(ctx context.Context, accountID uuid.UUID, from, to time.Time, granularity string) ([]domain.SpendByPeriod, error) {
+func (r *TransactionRepo) GetSpendByPeriod(ctx context.Context, accountID uuid.UUID, from *time.Time, to time.Time, granularity string) ([]domain.SpendByPeriod, error) {
 	rows, err := r.q.GetSpendByPeriod(ctx, generated.GetSpendByPeriodParams{
+		Granularity:   granularity,
 		FromAccountID: accountID,
-		CreatedAt:     from,
-		CreatedAt_2:   to,
-		Column4:       granularity,
+		CreatedAtFrom: timePtrToPgtype(from),
+		CreatedAtTo:   to,
 	})
 	if err != nil {
 		return nil, mapDBErr(err)

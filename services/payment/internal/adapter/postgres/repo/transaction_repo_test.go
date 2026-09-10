@@ -165,8 +165,8 @@ func TestTransactionRepo_SpendAnalyticsDebitOnly(t *testing.T) {
 		t.Fatalf("failed to create pending tx: %v", err)
 	}
 
-	// Test Spend by Category
-	catSpend, err := txRepo.GetSpendByCategory(ctx, accA.ID, yesterday, tomorrow)
+	// Test Spend by Category with explicit from
+	catSpend, err := txRepo.GetSpendByCategory(ctx, accA.ID, &yesterday, tomorrow)
 	if err != nil {
 		t.Fatalf("GetSpendByCategory failed: %v", err)
 	}
@@ -192,9 +192,18 @@ func TestTransactionRepo_SpendAnalyticsDebitOnly(t *testing.T) {
 		t.Errorf("expected food spend 7500 and count 2, got total %d, count %d (credits/pending leaked into aggregation!)", foodTotal, foodCount)
 	}
 
+	// Test Spend by Category with all-time (nil from)
+	catSpendAllTime, err := txRepo.GetSpendByCategory(ctx, accA.ID, nil, tomorrow)
+	if err != nil {
+		t.Fatalf("GetSpendByCategory (all time) failed: %v", err)
+	}
+	if len(catSpendAllTime) != 2 {
+		t.Errorf("expected 2 categories in all-time spend, got %d", len(catSpendAllTime))
+	}
+
 	// Test Spend by Period with DATE_TRUNC parameterization: day, week, month
 	for _, gran := range []string{"day", "week", "month"} {
-		periodSpend, err := txRepo.GetSpendByPeriod(ctx, accA.ID, yesterday, tomorrow, gran)
+		periodSpend, err := txRepo.GetSpendByPeriod(ctx, accA.ID, &yesterday, tomorrow, gran)
 		if err != nil {
 			t.Fatalf("GetSpendByPeriod with granularity %q failed: %v", gran, err)
 		}
@@ -211,6 +220,19 @@ func TestTransactionRepo_SpendAnalyticsDebitOnly(t *testing.T) {
 		}
 		if totalPeriodCount != 3 {
 			t.Errorf("granularity %q: expected total count 3, got %d", gran, totalPeriodCount)
+		}
+
+		// Test Spend by Period with all-time (nil from)
+		periodSpendAllTime, err := txRepo.GetSpendByPeriod(ctx, accA.ID, nil, tomorrow, gran)
+		if err != nil {
+			t.Fatalf("GetSpendByPeriod all-time with granularity %q failed: %v", gran, err)
+		}
+		var totalAllTimeAmount int64
+		for _, p := range periodSpendAllTime {
+			totalAllTimeAmount += p.TotalAmount
+		}
+		if totalAllTimeAmount != 17500 {
+			t.Errorf("granularity %q (all-time): expected total debit 17500, got %d", gran, totalAllTimeAmount)
 		}
 	}
 }
