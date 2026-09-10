@@ -2,6 +2,7 @@ package http
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
@@ -105,8 +106,14 @@ func (h *TransferHandler) ListMyTransactions(c fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Query("page_size", "20"))
 
+	var categoryID *string
+	if rawCat := strings.TrimSpace(c.Query("category_id")); rawCat != "" {
+		categoryID = &rawCat
+	}
+
 	result, err := h.transfers.ListMyTransactions(c.Context(), usecases.ListTransactionsInput{
 		AuthenticatedUserID: userID,
+		CategoryID:          categoryID,
 		Page:                page,
 		PageSize:            pageSize,
 	})

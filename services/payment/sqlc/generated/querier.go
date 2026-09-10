@@ -14,7 +14,7 @@ import (
 type Querier interface {
 	AddBalance(ctx context.Context, arg AddBalanceParams) error
 	CountDeposits(ctx context.Context, arg CountDepositsParams) (int64, error)
-	CountTransactionsByAccount(ctx context.Context, fromAccountID uuid.UUID) (int64, error)
+	CountTransactionsByAccount(ctx context.Context, arg CountTransactionsByAccountParams) (int64, error)
 	CountWithdrawals(ctx context.Context, arg CountWithdrawalsParams) (int64, error)
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (CreateAccountRow, error)
 	CreateCategory(ctx context.Context, arg CreateCategoryParams) (PaymentCategory, error)

@@ -15,11 +15,17 @@ import (
 
 const countTransactionsByAccount = `-- name: CountTransactionsByAccount :one
 SELECT COUNT(*) FROM payment.transactions
-WHERE from_account_id = $1 OR to_account_id = $1
+WHERE (from_account_id = $1::uuid OR to_account_id = $1::uuid)
+  AND ($2::uuid IS NULL OR category_id = $2)
 `
 
-func (q *Queries) CountTransactionsByAccount(ctx context.Context, fromAccountID uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countTransactionsByAccount, fromAccountID)
+type CountTransactionsByAccountParams struct {
+	AccountID  uuid.UUID
+	CategoryID pgtype.UUID
+}
+
+func (q *Queries) CountTransactionsByAccount(ctx context.Context, arg CountTransactionsByAccountParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countTransactionsByAccount, arg.AccountID, arg.CategoryID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -322,19 +328,26 @@ func (q *Queries) ListTransactionsByAccount(ctx context.Context, accountID uuid.
 
 const listTransactionsByAccountPaginated = `-- name: ListTransactionsByAccountPaginated :many
 SELECT id, from_account_id, to_account_id, amount, status, idempotency_key, description, created_at, completed_at, category_id FROM payment.transactions
-WHERE from_account_id = $1 OR to_account_id = $1
+WHERE (from_account_id = $3::uuid OR to_account_id = $3::uuid)
+  AND ($4::uuid IS NULL OR category_id = $4)
 ORDER BY created_at DESC
-LIMIT $2 OFFSET $3
+LIMIT $1 OFFSET $2
 `
 
 type ListTransactionsByAccountPaginatedParams struct {
-	FromAccountID uuid.UUID
-	Limit         int32
-	Offset        int32
+	Limit      int32
+	Offset     int32
+	AccountID  uuid.UUID
+	CategoryID pgtype.UUID
 }
 
 func (q *Queries) ListTransactionsByAccountPaginated(ctx context.Context, arg ListTransactionsByAccountPaginatedParams) ([]PaymentTransaction, error) {
-	rows, err := q.db.Query(ctx, listTransactionsByAccountPaginated, arg.FromAccountID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listTransactionsByAccountPaginated,
+		arg.Limit,
+		arg.Offset,
+		arg.AccountID,
+		arg.CategoryID,
+	)
 	if err != nil {
 		return nil, err
 	}

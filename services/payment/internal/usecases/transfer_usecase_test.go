@@ -1,200 +1,190 @@
 package usecases_test
 
-// import (
-// 	"context"
-// 	"errors"
-// 	"testing"
-// 	"time"
+import (
+	"context"
+	"testing"
+	"time"
 
-// 	"github.com/google/uuid"
-// 	"github.com/moneymate-2026/moneymate-backend/services/payment/internal/domain"
-// 	"github.com/moneymate-2026/moneymate-backend/services/payment/internal/usecases"
-// )
+	"github.com/google/uuid"
+	authclient "github.com/moneymate-2026/moneymate-backend/services/payment/internal/adapter/authClient"
+	"github.com/moneymate-2026/moneymate-backend/services/payment/internal/domain"
+	"github.com/moneymate-2026/moneymate-backend/services/payment/internal/usecases"
+	apperrors "github.com/moneymate-2026/moneymate-backend/shared/pkg/errors"
+)
 
-// // Mock representations for dependencies
+type mockAccountRepo struct {
+	domain.AccountRepository
+	accounts map[uuid.UUID]*domain.Account
+	wallets  map[uuid.UUID]*domain.Account
+}
 
-// type mockAccountRepo struct {
-// 	accounts map[string]*domain.Account
-// }
+func (m *mockAccountRepo) GetWalletByUserID(ctx context.Context, userID uuid.UUID) (*domain.Account, error) {
+	if acc, ok := m.wallets[userID]; ok {
+		return acc, nil
+	}
+	return nil, apperrors.ErrNotFound
+}
 
-// func (m *mockAccountRepo) GetByHandle(ctx context.Context, handle string) (*domain.Account, error) {
-// 	acc, ok := m.accounts[handle]
-// 	if !ok {
-// 		return nil, apperrors.ErrAccountNotFound
-// 	}
-// 	return acc, nil
-// }
-// func (m *mockAccountRepo) Create(ctx context.Context, account *domain.Account) error { return nil }
-// func (m *mockAccountRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) { return nil, nil }
-// func (m *mockAccountRepo) GetByUserID(ctx context.Context, userID uuid.UUID) (*domain.Account, error) { return nil, nil }
-// func (m *mockAccountRepo) GetWalletByUserID(ctx context.Context, userID uuid.UUID) (*domain.Account, error) { return nil, nil }
-// func (m *mockAccountRepo) UpdateBalance(ctx context.Context, id uuid.UUID, amount int64) error { return nil }
-// func (m *mockAccountRepo) WithTx(tx interface{}) domain.AccountRepository { return m }
+func (m *mockAccountRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Account, error) {
+	if acc, ok := m.accounts[id]; ok {
+		return acc, nil
+	}
+	return nil, apperrors.ErrNotFound
+}
 
-// type mockTxManager struct{}
-// func (m *mockTxManager) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
-// 	return fn(ctx)
-// }
+type mockTxRepo struct {
+	domain.TransactionRepository
+	txs                 []*domain.Transaction
+	totalCount          int64
+	err                 error
+	capturedAccountID   uuid.UUID
+	capturedCategoryID *uuid.UUID
+	capturedLimit       int32
+	capturedOffset      int32
+}
 
-// type mockTransferRepo struct{}
-// func (m *mockTransferRepo) Create(ctx context.Context, t *domain.Transaction) error { return nil }
-// func (m *mockTransferRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Transaction, error) { return nil, nil }
-// func (m *mockTransferRepo) GetByIdempotencyKey(ctx context.Context, key string, fromID uuid.UUID) (*domain.Transaction, error) { return nil, errors.New("not found") }
-// func (m *mockTransferRepo) GetEntriesByTransactionID(ctx context.Context, txID uuid.UUID) ([]*domain.LedgerEntry, error) { return nil, nil }
-// func (m *mockTransferRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error { return nil }
-// func (m *mockTransferRepo) WithTx(tx interface{}) domain.TransactionRepository { return m }
+func (m *mockTxRepo) ListByAccountPaginated(ctx context.Context, accountID uuid.UUID, categoryID *uuid.UUID, limit, offset int32) ([]*domain.Transaction, int64, error) {
+	m.capturedAccountID = accountID
+	m.capturedCategoryID = categoryID
+	m.capturedLimit = limit
+	m.capturedOffset = offset
 
-// type mockLedgerRepo struct{}
-// func (m *mockLedgerRepo) ExecuteTransfer(ctx context.Context, tx *domain.Transaction) (*domain.LedgerResult, error) { return nil, nil }
+	if m.err != nil {
+		return nil, 0, m.err
+	}
+	return m.txs, m.totalCount, nil
+}
 
-// type mockCategoryRepo struct{}
-// func (m *mockCategoryRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Category, error) { return nil, nil }
+type mockCategoryRepo struct {
+	domain.CategoryRepository
+	categories map[uuid.UUID]*domain.Category
+}
 
-// type mockAuthClient struct {
-// 	names  map[string]string
-// 	photos map[string]string
-// 	delay  time.Duration
-// }
+func (m *mockCategoryRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Category, error) {
+	if cat, ok := m.categories[id]; ok {
+		return cat, nil
+	}
+	return nil, apperrors.ErrNotFound
+}
 
-// func (m *mockAuthClient) GetUserProfile(ctx context.Context, userID string) (string, string, error) {
-// 	if m.delay > 0 {
-// 		select {
-// 		case <-time.After(m.delay):
-// 		case <-ctx.Done():
-// 			return "", "", ctx.Err()
-// 		}
-// 	}
-// 	name, ok := m.names[userID]
-// 	if !ok {
-// 		return "", "", errors.New("user not found")
-// 	}
-// 	return name, m.photos[userID], nil
-// }
+type mockAuthClient struct {
+	profiles map[string]*authclient.UserProfile
+}
 
-// type mockMerchantClient struct {
-// 	names map[string]string
-// 	logos map[string]string
-// 	delay time.Duration
-// }
+func (m *mockAuthClient) GetUserProfile(ctx context.Context, userID string) (*authclient.UserProfile, error) {
+	if p, ok := m.profiles[userID]; ok {
+		return p, nil
+	}
+	return nil, apperrors.ErrNotFound
+}
 
-// func (m *mockMerchantClient) GetStoreProfile(ctx context.Context, storeID string) (string, string, error) {
-// 	if m.delay > 0 {
-// 		select {
-// 		case <-time.After(m.delay):
-// 		case <-ctx.Done():
-// 			return "", "", ctx.Err()
-// 		}
-// 	}
-// 	name, ok := m.names[storeID]
-// 	if !ok {
-// 		return "", "", errors.New("store not found")
-// 	}
-// 	return name, m.logos[storeID], nil
-// }
+type mockMerchantClient struct{}
 
-// func setupUsecase(accs map[string]*domain.Account, auths map[string]string, merchants map[string]string) (usecases.TransferUsecase, *mockAuthClient, *mockMerchantClient) {
-// 	repo := &mockAccountRepo{accounts: accs}
-// 	trepo := &mockTransferRepo{}
-// 	ledger := &mockLedgerRepo{}
-// 	categories := &mockCategoryRepo{}
-	
-// 	authClient := &mockAuthClient{names: auths, photos: make(map[string]string)}
-// 	merchantClient := &mockMerchantClient{names: merchants, logos: make(map[string]string)}
+func (m *mockMerchantClient) GetStoreProfile(ctx context.Context, storeID string) (string, string, error) {
+	return "", "", nil
+}
 
-// 	uc := usecases.NewTransferUsecase(repo, trepo, ledger, categories, authClient, merchantClient)
-// 	return uc, authClient, merchantClient
-// }
+func TestListMyTransactions_WithCategoryFilter(t *testing.T) {
+	ctx := context.Background()
+	userID := uuid.New()
+	walletID := uuid.New()
+	catID := uuid.New()
+	catIDStr := catID.String()
 
-// func TestResolveHandle_RealUser(t *testing.T) {
-// 	uID := uuid.New()
-// 	accs := map[string]*domain.Account{
-// 		"user@moneymate": {Type: domain.AccountTypeWallet, UserID: &uID},
-// 	}
-// 	auths := map[string]string{
-// 		uID.String(): "John Doe",
-// 	}
-// 	uc, _, _ := setupUsecase(accs, auths, nil)
+	acc := &domain.Account{
+		ID:     walletID,
+		UserID: &userID,
+		Type:   domain.AccountTypeWallet,
+	}
 
-// 	res, err := uc.ResolveHandle(context.Background(), "user@moneymate")
-// 	if err != nil {
-// 		t.Fatalf("expected no error, got %v", err)
-// 	}
-// 	if res.AccountType != string(domain.AccountTypeWallet) {
-// 		t.Errorf("expected Wallet, got %s", res.AccountType)
-// 	}
-// 	if res.DisplayName != "John Doe" {
-// 		t.Errorf("expected John Doe, got %s", res.DisplayName)
-// 	}
-// }
+	accRepo := &mockAccountRepo{
+		accounts: map[uuid.UUID]*domain.Account{walletID: acc},
+		wallets:  map[uuid.UUID]*domain.Account{userID: acc},
+	}
 
-// func TestResolveHandle_RealMerchant(t *testing.T) {
-// 	mID := uuid.New()
-// 	accs := map[string]*domain.Account{
-// 		"store@moneymate": {Type: domain.AccountTypeMerchantSettlement, MerchantID: &mID},
-// 	}
-// 	merchants := map[string]string{
-// 		mID.String(): "Store LLC",
-// 	}
-// 	uc, _, _ := setupUsecase(accs, nil, merchants)
+	now := time.Now().UTC()
+	tx1 := &domain.Transaction{
+		ID:            uuid.New(),
+		FromAccountID: walletID,
+		ToAccountID:   uuid.New(),
+		Amount:        5000,
+		Status:        domain.TxStatusCompleted,
+		CategoryID:    &catID,
+		CreatedAt:     now,
+	}
 
-// 	res, err := uc.ResolveHandle(context.Background(), "store@moneymate")
-// 	if err != nil {
-// 		t.Fatalf("expected no error, got %v", err)
-// 	}
-// 	if res.AccountType != string(domain.AccountTypeMerchantSettlement) {
-// 		t.Errorf("expected MerchantSettlement, got %s", res.AccountType)
-// 	}
-// 	if res.DisplayName != "Store LLC" {
-// 		t.Errorf("expected Store LLC, got %s", res.DisplayName)
-// 	}
-// }
+	txRepo := &mockTxRepo{
+		txs:        []*domain.Transaction{tx1},
+		totalCount: 1,
+	}
 
-// func TestResolveHandle_GarbageHandle(t *testing.T) {
-// 	uc, _, _ := setupUsecase(map[string]*domain.Account{}, nil, nil)
-// 	_, err := uc.ResolveHandle(context.Background(), "garbage")
-// 	if err == nil {
-// 		t.Fatalf("expected ErrAccountNotFound, got nil")
-// 	}
-// }
+	catRepo := &mockCategoryRepo{
+		categories: map[uuid.UUID]*domain.Category{
+			catID: {ID: catID, UserID: userID, Name: "Groceries"},
+		},
+	}
 
-// func TestResolveHandle_DegradedUser(t *testing.T) {
-// 	uID := uuid.New()
-// 	accs := map[string]*domain.Account{
-// 		"user@moneymate": {Type: domain.AccountTypeWallet, UserID: &uID},
-// 	}
-// 	uc, authC, _ := setupUsecase(accs, nil, nil)
-// 	authC.delay = 5 * time.Second
+	authClient := &mockAuthClient{
+		profiles: map[string]*authclient.UserProfile{
+			userID.String(): {FullName: "Alice", Handle: "alice"},
+		},
+	}
 
-// 	// Create context with 10ms timeout
-// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
-// 	defer cancel()
+	uc := usecases.NewTransferUsecase(accRepo, txRepo, nil, catRepo, authClient, &mockMerchantClient{})
 
-// 	res, err := uc.ResolveHandle(ctx, "user@moneymate")
-// 	if err != nil {
-// 		t.Fatalf("expected no error, got %v", err)
-// 	}
-// 	if res.DisplayName != "" {
-// 		t.Errorf("expected fallback empty display name, got %s", res.DisplayName)
-// 	}
-// }
+	t.Run("success with category filter", func(t *testing.T) {
+		res, err := uc.ListMyTransactions(ctx, usecases.ListTransactionsInput{
+			AuthenticatedUserID: userID.String(),
+			CategoryID:          &catIDStr,
+			Page:                1,
+			PageSize:            10,
+		})
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
 
-// func TestResolveHandle_DegradedMerchant(t *testing.T) {
-// 	mID := uuid.New()
-// 	accs := map[string]*domain.Account{
-// 		"store@moneymate": {Type: domain.AccountTypeMerchantSettlement, MerchantID: &mID},
-// 	}
-// 	uc, _, merchC := setupUsecase(accs, nil, nil)
-// 	merchC.delay = 5 * time.Second
+		if txRepo.capturedAccountID != walletID {
+			t.Errorf("expected account ID %v, got %v", walletID, txRepo.capturedAccountID)
+		}
+		if txRepo.capturedCategoryID == nil || *txRepo.capturedCategoryID != catID {
+			t.Errorf("expected category ID %v, got %v", catID, txRepo.capturedCategoryID)
+		}
+		if txRepo.capturedLimit != 10 || txRepo.capturedOffset != 0 {
+			t.Errorf("expected limit 10, offset 0, got limit %d, offset %d", txRepo.capturedLimit, txRepo.capturedOffset)
+		}
+		if res.TotalCount != 1 || len(res.Transactions) != 1 {
+			t.Fatalf("expected 1 transaction, got total_count %d, len %d", res.TotalCount, len(res.Transactions))
+		}
+		if res.Transactions[0].Category != "Groceries" {
+			t.Errorf("expected category Groceries, got %s", res.Transactions[0].Category)
+		}
+	})
 
-// 	// Create context with 10ms timeout
-// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
-// 	defer cancel()
+	t.Run("success without category filter", func(t *testing.T) {
+		_, err := uc.ListMyTransactions(ctx, usecases.ListTransactionsInput{
+			AuthenticatedUserID: userID.String(),
+			CategoryID:          nil,
+			Page:                1,
+			PageSize:            10,
+		})
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if txRepo.capturedCategoryID != nil {
+			t.Errorf("expected nil category ID, got %v", txRepo.capturedCategoryID)
+		}
+	})
 
-// 	res, err := uc.ResolveHandle(ctx, "store@moneymate")
-// 	if err != nil {
-// 		t.Fatalf("expected no error, got %v", err)
-// 	}
-// 	if res.DisplayName != "" {
-// 		t.Errorf("expected fallback empty display name, got %s", res.DisplayName)
-// 	}
-// }
+	t.Run("invalid category uuid returns error", func(t *testing.T) {
+		invalidCat := "invalid-uuid"
+		_, err := uc.ListMyTransactions(ctx, usecases.ListTransactionsInput{
+			AuthenticatedUserID: userID.String(),
+			CategoryID:          &invalidCat,
+			Page:                1,
+			PageSize:            10,
+		})
+		if err != apperrors.ErrInvalidInput {
+			t.Fatalf("expected ErrInvalidInput, got %v", err)
+		}
+	})
+}

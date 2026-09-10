@@ -37,13 +37,15 @@ WHERE id = $1;
 
 -- name: ListTransactionsByAccountPaginated :many
 SELECT * FROM payment.transactions
-WHERE from_account_id = $1 OR to_account_id = $1
+WHERE (from_account_id = @account_id::uuid OR to_account_id = @account_id::uuid)
+  AND (sqlc.narg('category_id')::uuid IS NULL OR category_id = sqlc.narg('category_id'))
 ORDER BY created_at DESC
-LIMIT $2 OFFSET $3;
+LIMIT $1 OFFSET $2;
 
 -- name: CountTransactionsByAccount :one
 SELECT COUNT(*) FROM payment.transactions
-WHERE from_account_id = $1 OR to_account_id = $1;
+WHERE (from_account_id = @account_id::uuid OR to_account_id = @account_id::uuid)
+  AND (sqlc.narg('category_id')::uuid IS NULL OR category_id = sqlc.narg('category_id'));
 
 
 -- name: GetSpendByCategory :many
