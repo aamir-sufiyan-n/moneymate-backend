@@ -54,14 +54,24 @@ func (r *TransactionRepo) GetByIdempotencyKey(ctx context.Context, key string, f
 }
 
 
-func (r *TransactionRepo) ListByAccountPaginated(ctx context.Context, accountID uuid.UUID, limit, offset int32) ([]*domain.Transaction, int64, error) {
+func (r *TransactionRepo) ListByAccountPaginated(ctx context.Context, accountID uuid.UUID, categoryID *uuid.UUID, limit, offset int32) ([]*domain.Transaction, int64, error) {
+	var catParam pgtype.UUID
+	if categoryID != nil {
+		catParam = pgtype.UUID{Bytes: *categoryID, Valid: true}
+	}
 	rows, err := r.q.ListTransactionsByAccountPaginated(ctx, generated.ListTransactionsByAccountPaginatedParams{
-		FromAccountID: accountID, Limit: limit, Offset: offset,
+		AccountID:  accountID,
+		CategoryID: catParam,
+		Limit:      limit,
+		Offset:     offset,
 	})
 	if err != nil {
 		return nil, 0, mapDBErr(err)
 	}
-	total, err := r.q.CountTransactionsByAccount(ctx, accountID)
+	total, err := r.q.CountTransactionsByAccount(ctx, generated.CountTransactionsByAccountParams{
+		AccountID:  accountID,
+		CategoryID: catParam,
+	})
 	if err != nil {
 		return nil, 0, mapDBErr(err)
 	}
