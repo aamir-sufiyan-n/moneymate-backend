@@ -75,6 +75,6 @@ type TransactionRepository interface {
 	GetEntriesByTransactionID(ctx context.Context, txID uuid.UUID) ([]*JournalEntry, error)
 	ListWithdrawals(ctx context.Context, settlementAccountID uuid.UUID, fromAccountID *uuid.UUID, limit, offset int32) ([]*Transaction, int64, error)
 	ListByAccountPaginated(ctx context.Context, accountID uuid.UUID, categoryID *uuid.UUID, limit, offset int32) ([]*Transaction, int64, error)
-	GetSpendByCategory(ctx context.Context, accountID uuid.UUID, from, to time.Time) ([]SpendByCategory, error)
-	GetSpendByPeriod(ctx context.Context, accountID uuid.UUID, from, to time.Time, granularity string) ([]SpendByPeriod, error)
+	GetSpendByCategory(ctx context.Context, accountID uuid.UUID, from *time.Time, to time.Time) ([]SpendByCategory, error)
+	GetSpendByPeriod(ctx context.Context, accountID uuid.UUID, from *time.Time, to time.Time, granularity string) ([]SpendByPeriod, error)
 }

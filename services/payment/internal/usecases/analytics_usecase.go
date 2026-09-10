@@ -102,55 +102,42 @@ func (u *analyticsUsecase) SpendByPeriod(ctx context.Context, authUserID, granul
 		return nil, err
 	}
 
-	items := generateBuckets(from, to, granularity)
-	bucketMap := make(map[string]*SpendByPeriodItem, len(items))
-	for i := range items {
-		bucketMap[items[i].Period] = &items[i]
-	}
-
+	items := make([]SpendByPeriodItem, 0, len(rows))
 	for _, r := range rows {
-		periodKey := r.Period.UTC().Format("2006-01-02")
-		if item, ok := bucketMap[periodKey]; ok {
-			item.TotalAmount = money.FormatPaise(r.TotalAmount)
-			item.TransactionCount = r.TransactionCount
-		} else {
-			items = append(items, SpendByPeriodItem{
-				Period:           periodKey,
-				TotalAmount:      money.FormatPaise(r.TotalAmount),
-				TransactionCount: r.TransactionCount,
-			})
-		}
+		items = append(items, SpendByPeriodItem{
+			Period:           r.Period.UTC().Format("2006-01-02"),
+			TotalAmount:      money.FormatPaise(r.TotalAmount),
+			TransactionCount: r.TransactionCount,
+		})
 	}
 
 	return items, nil
 }
 
-func parseDateRange(fromStr, toStr string, now time.Time) (time.Time, time.Time, error) {
-	var from, to time.Time
+func parseDateRange(fromStr, toStr string, now time.Time) (*time.Time, time.Time, error) {
+	var from *time.Time
+	var to time.Time
 
-	if strings.TrimSpace(fromStr) == "" {
-		from = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
-	} else {
+	if strings.TrimSpace(fromStr) != "" {
 		parsedFrom, err := parseFromDate(strings.TrimSpace(fromStr))
 		if err != nil {
-			return time.Time{}, time.Time{}, apperrors.ErrInvalidInput
+			return nil, time.Time{}, apperrors.ErrInvalidInput
 		}
-		from = parsedFrom
+		from = &parsedFrom
 	}
 
 	if strings.TrimSpace(toStr) == "" {
-		fromYear, fromMonth, _ := from.Date()
-		to = time.Date(fromYear, fromMonth+1, 1, 0, 0, 0, 0, time.UTC)
+		to = now
 	} else {
 		parsedTo, err := parseToDate(strings.TrimSpace(toStr))
 		if err != nil {
-			return time.Time{}, time.Time{}, apperrors.ErrInvalidInput
+			return nil, time.Time{}, apperrors.ErrInvalidInput
 		}
 		to = parsedTo
 	}
 
-	if !to.After(from) {
-		return time.Time{}, time.Time{}, apperrors.ErrInvalidInput
+	if from != nil && !to.After(*from) {
+		return nil, time.Time{}, apperrors.ErrInvalidInput
 	}
 
 	return from, to, nil
@@ -187,52 +174,4 @@ func parseToDate(s string) (time.Time, error) {
 		return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, 1), nil
 	}
 	return time.Time{}, apperrors.ErrInvalidInput
-}
-
-func generateBuckets(from, to time.Time, granularity string) []SpendByPeriodItem {
-	var items []SpendByPeriodItem
-	const maxBuckets = 1000
-
-	switch granularity {
-	case "month":
-		curr := time.Date(from.Year(), from.Month(), 1, 0, 0, 0, 0, time.UTC)
-		for curr.Before(to) && len(items) < maxBuckets {
-			items = append(items, SpendByPeriodItem{
-				Period:           curr.Format("2006-01-02"),
-				TotalAmount:      "0.00",
-				TransactionCount: 0,
-			})
-			curr = curr.AddDate(0, 1, 0)
-		}
-	case "week":
-		// Truncate to Monday of the starting week
-		weekday := int(from.Weekday())
-		if weekday == 0 {
-			weekday = 7 // Sunday -> 7
-		}
-		curr := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -(weekday - 1))
-		for curr.Before(to) && len(items) < maxBuckets {
-			items = append(items, SpendByPeriodItem{
-				Period:           curr.Format("2006-01-02"),
-				TotalAmount:      "0.00",
-				TransactionCount: 0,
-			})
-			curr = curr.AddDate(0, 0, 7)
-		}
-	default: // "day"
-		curr := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, time.UTC)
-		for curr.Before(to) && len(items) < maxBuckets {
-			items = append(items, SpendByPeriodItem{
-				Period:           curr.Format("2006-01-02"),
-				TotalAmount:      "0.00",
-				TransactionCount: 0,
-			})
-			curr = curr.AddDate(0, 0, 1)
-		}
-	}
-
-	if items == nil {
-		items = []SpendByPeriodItem{}
-	}
-	return items
 }

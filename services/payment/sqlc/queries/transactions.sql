@@ -55,22 +55,22 @@ SELECT
     COALESCE(SUM(t.amount), 0)::bigint AS total_amount
 FROM payment.transactions t
 LEFT JOIN payment.categories c ON t.category_id = c.id
-WHERE t.from_account_id = $1
+WHERE t.from_account_id = @from_account_id::uuid
   AND t.status = 'completed'
-  AND t.created_at >= $2
-  AND t.created_at < $3
+  AND (sqlc.narg('created_at_from')::timestamptz IS NULL OR t.created_at >= sqlc.narg('created_at_from'))
+  AND t.created_at < @created_at_to::timestamptz
 GROUP BY c.name
 ORDER BY total_amount DESC;
 
 -- name: GetSpendByPeriod :many
 SELECT 
-    DATE_TRUNC($4::text, t.created_at)::timestamptz AS period,
+    DATE_TRUNC(@granularity::text, t.created_at)::timestamptz AS period,
     COALESCE(SUM(t.amount), 0)::bigint AS total_amount,
     COUNT(*)::bigint AS transaction_count
 FROM payment.transactions t
-WHERE t.from_account_id = $1
+WHERE t.from_account_id = @from_account_id::uuid
   AND t.status = 'completed'
-  AND t.created_at >= $2
-  AND t.created_at < $3
-GROUP BY DATE_TRUNC($4::text, t.created_at)
+  AND (sqlc.narg('created_at_from')::timestamptz IS NULL OR t.created_at >= sqlc.narg('created_at_from'))
+  AND t.created_at < @created_at_to::timestamptz
+GROUP BY DATE_TRUNC(@granularity::text, t.created_at)
 ORDER BY period ASC;

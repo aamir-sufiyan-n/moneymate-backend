@@ -38,18 +38,18 @@ SELECT
     COALESCE(SUM(t.amount), 0)::bigint AS total_amount
 FROM payment.transactions t
 LEFT JOIN payment.categories c ON t.category_id = c.id
-WHERE t.from_account_id = $1
+WHERE t.from_account_id = $1::uuid
   AND t.status = 'completed'
-  AND t.created_at >= $2
-  AND t.created_at < $3
+  AND ($2::timestamptz IS NULL OR t.created_at >= $2)
+  AND t.created_at < $3::timestamptz
 GROUP BY c.name
 ORDER BY total_amount DESC
 `
 
 type GetSpendByCategoryParams struct {
 	FromAccountID uuid.UUID
-	CreatedAt     time.Time
-	CreatedAt_2   time.Time
+	CreatedAtFrom pgtype.Timestamptz
+	CreatedAtTo   time.Time
 }
 
 type GetSpendByCategoryRow struct {
@@ -59,7 +59,7 @@ type GetSpendByCategoryRow struct {
 }
 
 func (q *Queries) GetSpendByCategory(ctx context.Context, arg GetSpendByCategoryParams) ([]GetSpendByCategoryRow, error) {
-	rows, err := q.db.Query(ctx, getSpendByCategory, arg.FromAccountID, arg.CreatedAt, arg.CreatedAt_2)
+	rows, err := q.db.Query(ctx, getSpendByCategory, arg.FromAccountID, arg.CreatedAtFrom, arg.CreatedAtTo)
 	if err != nil {
 		return nil, err
 	}
@@ -80,23 +80,23 @@ func (q *Queries) GetSpendByCategory(ctx context.Context, arg GetSpendByCategory
 
 const getSpendByPeriod = `-- name: GetSpendByPeriod :many
 SELECT 
-    DATE_TRUNC($4::text, t.created_at)::timestamptz AS period,
+    DATE_TRUNC($1::text, t.created_at)::timestamptz AS period,
     COALESCE(SUM(t.amount), 0)::bigint AS total_amount,
     COUNT(*)::bigint AS transaction_count
 FROM payment.transactions t
-WHERE t.from_account_id = $1
+WHERE t.from_account_id = $2::uuid
   AND t.status = 'completed'
-  AND t.created_at >= $2
-  AND t.created_at < $3
-GROUP BY DATE_TRUNC($4::text, t.created_at)
+  AND ($3::timestamptz IS NULL OR t.created_at >= $3)
+  AND t.created_at < $4::timestamptz
+GROUP BY DATE_TRUNC($1::text, t.created_at)
 ORDER BY period ASC
 `
 
 type GetSpendByPeriodParams struct {
+	Granularity   string
 	FromAccountID uuid.UUID
-	CreatedAt     time.Time
-	CreatedAt_2   time.Time
-	Column4       string
+	CreatedAtFrom pgtype.Timestamptz
+	CreatedAtTo   time.Time
 }
 
 type GetSpendByPeriodRow struct {
@@ -107,10 +107,10 @@ type GetSpendByPeriodRow struct {
 
 func (q *Queries) GetSpendByPeriod(ctx context.Context, arg GetSpendByPeriodParams) ([]GetSpendByPeriodRow, error) {
 	rows, err := q.db.Query(ctx, getSpendByPeriod,
+		arg.Granularity,
 		arg.FromAccountID,
-		arg.CreatedAt,
-		arg.CreatedAt_2,
-		arg.Column4,
+		arg.CreatedAtFrom,
+		arg.CreatedAtTo,
 	)
 	if err != nil {
 		return nil, err
